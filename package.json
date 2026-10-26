@@ -14,7 +14,8 @@
     "dist:linux": "electron-builder --linux dir",
     "dist:mac": "electron-builder --mac dir",
     "store": "node tools/make-store-assets.mjs",
-    "demo": "DOORBUSTER_DEMO=1 electron ."
+    "demo": "DOORBUSTER_DEMO=1 electron .",
+    "i18n": "node test/i18n.mjs"
   },
   "devDependencies": {
     "electron": "33.2.0",

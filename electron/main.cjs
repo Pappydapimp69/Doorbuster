@@ -25,6 +25,9 @@ ipcMain.handle('steam:store', () => {
   try { full = Number(require('node:fs').readFileSync(path.join(__dirname, '..', 'steam_full_appid.txt'), 'utf8').trim()) || appId; } catch { /* full build: own page */ }
   return shell.openExternal(steam ? `steam://store/${full}` : `https://store.steampowered.com/app/${full}/`);
 });
+ipcMain.on('steam:language', (e) => {
+  try { e.returnValue = steam ? steam.apps.currentGameLanguage() : null; } catch { e.returnValue = null; }
+});
 ipcMain.on('steam:available', (e) => { e.returnValue = !!steam; });
 
 function createWindow() {

@@ -5,6 +5,7 @@ if (ipcRenderer.sendSync('steam:available')) {
   contextBridge.exposeInMainWorld('steam', {
     activateAchievement: (id) => ipcRenderer.invoke('steam:achievement', id),
     playerName: () => ipcRenderer.sendSync('steam:name'),
+    language: () => ipcRenderer.sendSync('steam:language'),
   });
 }
 const fs = require('node:fs'), path = require('node:path');

@@ -11,6 +11,7 @@ and survive until 11:00 AM.
 - Break Room meta upgrades and 4 unlockable staff, paid in tips
 - Keyboard, mouse and gamepad (Steam Deck friendly); all sound synthesized, no assets to license
 - 9 Steam achievements wired through steamworks.js
+- English, 简体中文, Русский, Español, Português (Brasil), Deutsch — follows Steam's language, switchable in Settings
 - Demo mode for Steam Next Fest (`?demo`, `npm run demo`, or a `demo.flag` file in the build's resources)
 
 ## Run it
@@ -33,6 +34,7 @@ price and the asset checklist are in `store/store-page.md`.
 ```bash
 npm run playtest   # headless bot runs: errors + balance (fresh vs maxed meta)
 npm run shots      # gameplay screenshots into test/shots/
+npm run i18n       # every language: missing strings, overflow, screenshots
 ```
 
 The bot kites with a 16-direction danger score and levels owned weapons
@@ -45,7 +47,7 @@ All tuning is in `src/data.js`.
 ## Getting it on Steam
 
 1. **Steamworks account**: pay the $100 app fee, get an App ID, put it in
-   `steam_appid.txt` (480 is Valve's test app), and add the 6 achievement
+   `steam_appid.txt` (480 is Valve's test app), and add the 9 achievement
    IDs from `src/data.js` (`ACHIEVEMENTS`) in the Steamworks admin.
 2. **Store page first, game second.** Put the page up as early as possible.
    Wishlists drive launch visibility. Needs: capsule art, 5+ screenshots
@@ -61,6 +63,6 @@ All tuning is in `src/data.js`.
 ## Before launch (what's missing)
 
 - Real pixel art for capsule/trailer (in-game sprites are placeholder-good, not store-good)
-- Localization (at least Simplified Chinese, German, Spanish, Portuguese-BR, Russian)
+- Native-speaker review of the 5 machine-written translations (zh, ru, es, pt-BR, de); add Japanese, French, Korean
 - Real music track; the synthesized muzak is a placeholder
 - Playtests with humans: the bot sets the floor, not the feel

@@ -42,6 +42,10 @@ upgrades, and build something that can hold the line.
 - Full gamepad support, readable at handheld size, toggles for screen shake
   and damage numbers.
 
+## Languages
+
+Interface and subtitles: English, Simplified Chinese, Russian, Spanish (Spain), Portuguese (Brazil), German. Tick these in Steamworks; translate the store page text itself into the same languages (Steamworks has a field per language).
+
 ## Tags (pick up to 20, most important first)
 
 Survivors-like, Bullet Heaven, Roguelite, Action Roguelike, Pixel Graphics,

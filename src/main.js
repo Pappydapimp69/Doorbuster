@@ -1,11 +1,12 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, ACHIEVEMENTS, ANNOUNCEMENTS, MAPS as STAGES,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes } from './audio.js';
 import { loadSave, writeSave } from './save.js';
 import { unlockAchievement } from './steam.js';
+import { T, setLang, lang, detectLang, LANGS, missingKeys } from './i18n.js';
 
 const W = 480, H = 270, STEP = 1 / 60;
 const canvas = document.getElementById('game');
@@ -232,12 +233,12 @@ function director(dt) {
   }
   const once = (key, at, fn) => { if (t >= at && !G.events.has(key)) { G.events.add(key); fn(); } };
   once('rush', 60, () => {
-    announce('DOORBUSTER RUSH!', true);
+    announce(T('ui.rush'), true);
     const a = rand(0, Math.PI * 2);
     for (let i = 0; i < 45; i++) spawnEnemy('walker', a + rand(-0.4, 0.4), rand(260, 340));
   });
   for (const [k, at] of [['sale1', 180], ['sale2', 360], ['sale3', 480]]) once(k, at, () => {
-    announce('FLASH SALE — YOU ARE THE SALE', true);
+    announce(T('ui.flashSale'), true);
     // A ring with one gap: it's a test of spotting the exit, not a death sentence.
     const n = 50 + Math.floor(at / 8), gap = rand(0, Math.PI * 2);
     for (let i = 0; i < n; i++) {
@@ -246,7 +247,7 @@ function director(dt) {
     }
   });
   for (const at of [120, 240, 360, 450]) once('elite' + at, at, () => {
-    announce('A customer would like to speak to your manager.', true);
+    announce(T('ui.elite'), true);
     spawnEnemy('requester');
   });
   once('boss', BOSS_AT, () => spawnBoss(1));
@@ -255,11 +256,13 @@ function director(dt) {
     const n = Math.floor((t - G.otStart) / 120);
     once('otboss' + n, G.otStart + n * 120 + 60, () => spawnBoss(1.5 + n * 0.75));
   }
-  if (t >= G.nextAnnounce) { G.nextAnnounce = t + rand(35, 60); announce(pick(ANNOUNCEMENTS)); }
+  if (t >= G.nextAnnounce) { G.nextAnnounce = t + rand(35, 60); announce(pick(T('announcements'))); }
 }
 
+function bossName() { return T(`maps.${G.map}.boss`); }
+
 function spawnBoss(mult) {
-  announce(`THE ${G.stage.boss.toUpperCase()} IS HERE`, true);
+  announce(T('ui.bossHere', { boss: bossName().toUpperCase() }), true);
   sfx('boss');
   const b = spawnEnemy('boss', rand(0, Math.PI * 2), 220);
   b.hp = b.maxHp = ENEMIES.boss.hp * G.stage.bossHp * mult;
@@ -350,7 +353,7 @@ function bossAI(e, dt, dx, dy, d) {
   }
   if (e.dashT > 6 && d < 200) {
     e.dashT = 0; e.charging = 0.6; e.cdx = dx; e.cdy = dy;
-    announce('"Let\'s circle back on that."');
+    announce(T('ui.circleBack'));
   }
   if (e.charging > 0) { e.charging -= dt; e.x += e.cdx * 220 * dt; e.y += e.cdy * 220 * dt; }
   // Can't be kited off forever: closes distance fast when left behind.
@@ -368,7 +371,7 @@ function hurtPlayer(raw, src = '?') {
   if (p.hp <= 0) {
     if (G.revives > 0) {
       G.revives--; p.hp = G.stats.maxHp * 0.5; p.inv = 2;
-      announce('SECOND WIND. Back to work.', true);
+      announce(T('ui.secondWind'), true);
       for (const e of G.enemies) if (!e.def.boss && dist2(e, p) < 120 * 120) damageEnemy(e, 9999, 0, 0, 0);
     } else endRun(false);
   }
@@ -411,7 +414,7 @@ function killEnemy(e) {
   if (e.def.boss) {
     G.bossDead = true;
     G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: 100 });
-    announce(`The ${G.stage.boss} has left the building.`, true);
+    announce(T('ui.bossGone', { boss: bossName() }), true);
     achieve('BOSS_DOWN');
     save.stats.bossKills++;
     G.shake = 1; G.hitstop = 0.25;
@@ -743,7 +746,7 @@ function openBox() {
   const evo = readyEvolutions();
   if (evo.length) { applyChoice({ type: 'evo', id: evo[0] }); return; }
   G.pendingLevels++;
-  announce('Lost & Found box: free upgrade.', true);
+  announce(T('ui.lostFound'), true);
 }
 
 // ---------- level-up ----------
@@ -764,16 +767,16 @@ function buildChoices() {
 }
 
 function choiceInfo(c) {
-  if (c.type === 'evo') { const e = EVOLUTIONS[c.id]; return { icon: '⭐', title: e.name, tag: 'EVOLUTION', text: e.desc }; }
-  if (c.type === 'snack') return { icon: '🌭', title: 'Break Room Hot Dog', tag: 'HEAL', text: 'Restore 40 HP.' };
-  if (c.type === 'tips') return { icon: '💵', title: 'Tip Jar', tag: 'TIPS', text: '+25 tips.' };
+  if (c.type === 'evo') return { icon: '⭐', title: T(`evolutions.${c.id}.name`), tag: T('ui.tagEvo'), text: T(`evolutions.${c.id}.desc`) };
+  if (c.type === 'snack') return { icon: '🌭', title: T('ui.snackTitle'), tag: T('ui.tagHeal'), text: T('ui.snackText') };
+  if (c.type === 'tips') return { icon: '💵', title: T('ui.tipsTitle'), tag: T('ui.tagTips'), text: T('ui.tipsText') };
   if (c.type === 'weapon') {
-    const w = G.weapons.find((x) => x.id === c.id), def = WEAPONS[c.id];
-    return w ? { icon: ICONS[c.id], title: def.name, tag: 'LV ' + (w.lv + 1), text: def.lvText[w.lv] }
-      : { icon: ICONS[c.id], title: def.name, tag: 'NEW', text: def.desc };
+    const w = G.weapons.find((x) => x.id === c.id), name = T(`weapons.${c.id}.name`);
+    return w ? { icon: ICONS[c.id], title: name, tag: T('ui.tagLv', { n: w.lv + 1 }), text: T(`weapons.${c.id}.lvText`)[w.lv] }
+      : { icon: ICONS[c.id], title: name, tag: T('ui.tagNew'), text: T(`weapons.${c.id}.desc`) };
   }
-  const def = PASSIVES[c.id], lv = G.passives[c.id];
-  return { icon: ICONS[c.id], title: def.name, tag: lv ? 'LV ' + (lv + 1) : 'NEW', text: def.desc };
+  const lv = G.passives[c.id];
+  return { icon: ICONS[c.id], title: T(`passives.${c.id}.name`), tag: lv ? T('ui.tagLv', { n: lv + 1 }) : T('ui.tagNew'), text: T(`passives.${c.id}.desc`) };
 }
 
 function applyChoice(c) {
@@ -781,7 +784,7 @@ function applyChoice(c) {
     const w = G.weapons.find((x) => x.id === c.id);
     w.evolved = true; G.evolved++;
     sfx('evolve');
-    announce('PROMOTED: ' + EVOLUTIONS[c.id].name.toUpperCase(), true);
+    announce(T('ui.promoted', { name: T(`evolutions.${c.id}.name`).toUpperCase() }), true);
     achieve('EVOLVED');
   } else if (c.type === 'weapon') {
     const w = G.weapons.find((x) => x.id === c.id);
@@ -862,7 +865,7 @@ function achieve(id) {
   save.achievements[id] = Date.now();
   unlockAchievement(id);
   writeSave(save);
-  toast('🏆 ' + ACHIEVEMENTS[id]);
+  toast('🏆 ' + T(`achievements.${id}`));
 }
 
 function toast(text) {
@@ -1052,6 +1055,7 @@ function drawFloor() {
 function clockText() {
   const m = SHIFT_START_MIN + (G.t / RUN_SECONDS) * SHIFT_GAME_MINUTES;
   let h = Math.floor(m / 60) % 24; const mm = Math.floor(m % 60);
+  if (T('ui.clock24') === true) return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
   return `${h}:${String(mm).padStart(2, '0')} ${ap}`;
 }
@@ -1062,8 +1066,8 @@ function renderHud() {
   ui.hud.style.display = '';
   const w = G.weapons.map((x) => `<span class="slot${x.evolved ? ' evo' : ''}">${ICONS[x.id]}<b>${x.evolved ? '★' : x.lv}</b></span>`).join('');
   const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('');
-  const html = `<div class="xpbar"><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>LV ${G.level}</span></div>
-    <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${G.overtime ? 'OVERTIME (unpaid)' : G.t < BOSS_AT ? 'shift ends 11:00 AM' : 'HOLD ON'}</small></div>
+  const html = `<div class="xpbar"><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>${T('ui.lv', { n: G.level })}</span></div>
+    <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${T(G.overtime ? 'ui.overtimeHud' : G.t < BOSS_AT ? 'ui.shiftEnds' : 'ui.holdOn')}</small></div>
     <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}</div></div><div class="slots">${ps}</div>`;
   if (html !== hudCache) { ui.hud.innerHTML = html; hudCache = html; }
 }
@@ -1142,6 +1146,12 @@ const ACTIONS = {
     audio.sfx = save.settings.sfx; audio.music = save.settings.music; setVolumes(); writeSave(save); sfx('ui');
     showSettings(show.back, arg);
   },
+  lang: () => {
+    const codes = Object.keys(LANGS);
+    save.settings.lang = codes[(codes.indexOf(lang()) + 1) % codes.length];
+    setLang(save.settings.lang); writeSave(save); sfx('ui');
+    showSettings(show.back, 'cycle');
+  },
   toggle: (k) => { save.settings[k] = !save.settings[k]; writeSave(save); showSettings(show.back, 'toggle:' + k); },
 };
 
@@ -1153,58 +1163,60 @@ function refocus(selector) {
 
 function showMenu() {
   state = 'menu';
-  show(`<div class="title"><h1>DOOR<span>BUSTER</span></h1>${DEMO ? '<p class="demo">DEMO</p>' : ''}<p>Black Friday. 5:00 AM. The doors are opening.</p></div>
+  show(`<div class="title"><h1>DOOR<span>BUSTER</span></h1>${DEMO ? `<p class="demo">${T('ui.demo')}</p>` : ''}<p>${T('ui.tagline')}</p></div>
     <div class="menu">
-      <button class="btn" data-act="start">Clock In</button>
-      <button class="btn" data-act="staff">Staff Room</button>
-      <button class="btn" data-act="shop">Break Room <small>💰 ${save.tips}</small></button>
-      <button class="btn" data-act="settings">Settings</button>
-      ${DEMO ? '<button class="btn" data-act="wishlist">⭐ Wishlist</button>' : ''}
-      ${window.desktop ? '<button class="btn" data-act="quit">Quit</button>' : ''}
+      <button class="btn" data-act="start">${T('ui.clockIn')}</button>
+      <button class="btn" data-act="staff">${T('ui.staffRoom')}</button>
+      <button class="btn" data-act="shop">${T('ui.breakRoom')} <small>💰 ${save.tips}</small></button>
+      <button class="btn" data-act="settings">${T('ui.settings')}</button>
+      ${DEMO ? `<button class="btn" data-act="wishlist">⭐ ${T('ui.wishlist')}</button>` : ''}
+      ${window.desktop ? `<button class="btn" data-act="quit">${T('ui.quit')}</button>` : ''}
     </div>
-    <p class="hint">Move: WASD / arrows / stick. Weapons fire on their own. Survive until 11:00 AM.</p>`);
+    <p class="hint">${T('ui.hint')}</p>`);
 }
 
 function showShop(focusId) {
-  show(`<h2>Break Room</h2><p class="sub">Spend tips on permanent perks. 💰 ${save.tips}</p>
+  show(`<h2>${T('ui.breakRoom')}</h2><p class="sub">${T('ui.shopSub')} 💰 ${save.tips}</p>
     <div class="grid" data-cols="2">${Object.entries(META).map(([id, m]) => {
       const lv = metaLv(id), maxed = lv >= m.max, cost = maxed ? 0 : m.cost[lv];
       return `<button class="btn card" data-act="buy" data-arg="${id}" ${!maxed && save.tips < cost ? 'data-poor' : ''}>
-        <b>${m.name}</b><span>${m.desc}</span><em>${'●'.repeat(lv)}${'○'.repeat(m.max - lv)}</em>
-        <i>${maxed ? 'MAXED' : '💰 ' + cost}</i></button>`;
-    }).join('')}</div><button class="btn back" data-act="menu">Back</button>`, showMenu);
+        <b>${T(`meta.${id}.name`)}</b><span>${T(`meta.${id}.desc`)}</span><em>${'●'.repeat(lv)}${'○'.repeat(m.max - lv)}</em>
+        <i>${maxed ? T('ui.maxed') : '💰 ' + cost}</i></button>`;
+    }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
   refocus(focusId && `[data-arg="${focusId}"]`);
 }
 
 function showStaff(focusId) {
-  show(`<h2>Staff Room</h2><p class="sub">Pick who works the shift. 💰 ${save.tips}</p>
+  show(`<h2>${T('ui.staffRoom')}</h2><p class="sub">${T('ui.staffSub')} 💰 ${save.tips}</p>
     <div class="grid" data-cols="2">${Object.entries(CHARACTERS).map(([id, c]) => {
       const own = save.unlocked[id], sel = save.selected === id;
       return `<button class="btn card${sel ? ' sel' : ''}" data-act="hire" data-arg="${id}">
-        <b>${c.name} ${ICONS[c.weapon]}</b><span>${c.desc}</span>
-        <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 Full game' : sel ? 'ON SHIFT' : own ? 'Select' : '💰 ' + c.cost}</i></button>`;
-    }).join('')}</div><button class="btn back" data-act="menu">Back</button>`, showMenu);
+        <b>${T(`characters.${id}.name`)} ${ICONS[c.weapon]}</b><span>${T(`characters.${id}.desc`)}</span>
+        <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 ' + T('ui.fullGame') : sel ? T('ui.onShift') : own ? T('ui.select') : '💰 ' + c.cost}</i></button>`;
+    }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
   refocus(focusId && `[data-arg="${focusId}"]`);
 }
 
 function showSettings(back = showMenu, focusArg) {
   const s = save.settings;
   const bar = (v) => '█'.repeat(Math.round(v * 10)) + '░'.repeat(10 - Math.round(v * 10));
-  show(`<h2>Settings</h2><div class="menu wide">
-    <div class="setrow">SFX <button class="btn sm" data-act="vol" data-arg="sfx:-0.1">−</button><code>${bar(s.sfx)}</code><button class="btn sm" data-act="vol" data-arg="sfx:0.1">+</button></div>
-    <div class="setrow">Music <button class="btn sm" data-act="vol" data-arg="music:-0.1">−</button><code>${bar(s.music)}</code><button class="btn sm" data-act="vol" data-arg="music:0.1">+</button></div>
-    <button class="btn" data-act="toggle" data-arg="shake">Screen shake: ${s.shake ? 'ON' : 'OFF'}</button>
-    <button class="btn" data-act="toggle" data-arg="damageNumbers">Damage numbers: ${s.damageNumbers ? 'ON' : 'OFF'}</button>
-    <button class="btn" data-act="${back === showPause ? 'resume' : 'menu'}">Back</button></div>`, back);
+  const onoff = (v) => T(v ? 'ui.on' : 'ui.off');
+  show(`<h2>${T('ui.settings')}</h2><div class="menu wide">
+    <div class="setrow">${T('ui.sfx')} <button class="btn sm" data-act="vol" data-arg="sfx:-0.1">−</button><code>${bar(s.sfx)}</code><button class="btn sm" data-act="vol" data-arg="sfx:0.1">+</button></div>
+    <div class="setrow">${T('ui.music')} <button class="btn sm" data-act="vol" data-arg="music:-0.1">−</button><code>${bar(s.music)}</code><button class="btn sm" data-act="vol" data-arg="music:0.1">+</button></div>
+    <button class="btn" data-act="lang" data-arg="cycle">${T('ui.language')}: ${LANGS[lang()]}</button>
+    <button class="btn" data-act="toggle" data-arg="shake">${T('ui.shake')}: ${onoff(s.shake)}</button>
+    <button class="btn" data-act="toggle" data-arg="damageNumbers">${T('ui.damageNumbers')}: ${onoff(s.damageNumbers)}</button>
+    <button class="btn" data-act="${back === showPause ? 'resume' : 'menu'}">${T('ui.back')}</button></div>`, back);
   show.back = back;
   refocus(focusArg && `[data-arg="${focusArg}"]`);
 }
 
 function showPause() {
-  show(`<h2>On Break</h2><div class="menu">
-    <button class="btn" data-act="resume">Back to Work</button>
-    <button class="btn" data-act="settings">Settings</button>
-    <button class="btn" data-act="menu">Quit Shift</button></div>`, resume);
+  show(`<h2>${T('ui.onBreak')}</h2><div class="menu">
+    <button class="btn" data-act="resume">${T('ui.backToWork')}</button>
+    <button class="btn" data-act="settings">${T('ui.settings')}</button>
+    <button class="btn" data-act="menu">${T('ui.quitShift')}</button></div>`, resume);
 }
 function pause() { if (state !== 'play') return; state = 'paused'; showPause(); }
 function resume() { state = 'play'; show(''); }
@@ -1216,13 +1228,13 @@ function openLevelUp() {
   renderLevelUp();
 }
 function renderLevelUp() {
-  show(`<h2>Level ${G.level - G.pendingLevels + 1}!</h2><p class="sub">Pick one.</p>
+  show(`<h2>${T('ui.level', { n: G.level - G.pendingLevels + 1 })}</h2><p class="sub">${T('ui.pickOne')}</p>
     <div class="choices">${G.choices.map((c, i) => {
       const inf = choiceInfo(c);
       return `<button class="btn choice${c.type === 'evo' ? ' evo' : ''}" data-act="choose" data-arg="${i}">
         <div class="ic">${inf.icon}</div><div><b>${inf.title}</b> <em>${inf.tag}</em><span>${inf.text}</span></div><kbd>${i + 1}</kbd></button>`;
     }).join('')}</div>
-    ${G.rerolls > 0 ? `<button id="reroll" class="btn sm" data-act="reroll">Price check (reroll) ×${G.rerolls} [R]</button>` : ''}`);
+    ${G.rerolls > 0 ? `<button id="reroll" class="btn sm" data-act="reroll">${T('ui.reroll', { n: G.rerolls })}</button>` : ''}`);
 }
 
 function startRun(charId, seed, map) {
@@ -1232,7 +1244,7 @@ function startRun(charId, seed, map) {
   state = 'play';
   show('');
   startMusic();
-  announce('Doors open. Good luck out there.', true);
+  announce(T('ui.doorsOpen'), true);
 }
 
 function endRun(win) {
@@ -1263,17 +1275,17 @@ function endRun(win) {
   }
   writeSave(save);
   const mm = Math.floor(survived / 60), ss = String(survived % 60).padStart(2, '0');
-  const title = win ? 'SHIFT COMPLETE' : G.overtime ? 'OVERTIME OVER' : 'TRAMPLED';
-  const sub = win ? 'You clocked out at 11:00 AM. Nobody said thank you.'
-    : G.overtime ? `You worked ${Math.floor((G.t - G.otStart) / 60)} minutes of overtime. Unpaid, technically.`
-    : `Clocked out early at ${clockText()}.`;
+  const title = T(win ? 'ui.shiftComplete' : G.overtime ? 'ui.overtimeOver' : 'ui.trampled');
+  const sub = win ? T('ui.subWin')
+    : G.overtime ? T('ui.subOvertime', { n: Math.floor((G.t - G.otStart) / 60) })
+    : T('ui.subLose', { time: clockText() });
   show(`<h2>${title}</h2><p class="sub">${sub}</p>
-    <div class="stats"><div><b>${mm}:${ss}</b>survived</div><div><b>${G.kills}</b>shoppers</div><div><b>${G.level}</b>level</div><div><b>💰 ${total}</b>tips (+${bonus} bonus)</div></div>
-    <div class="menu">${DEMO ? '<button class="btn" data-act="wishlist">⭐ Wishlist the full game</button>' : win ? '<button class="btn" data-act="overtime">Work Overtime (endless)</button>' : ''}
-    <button class="btn" data-act="start">Pick Up Another Shift</button>
-    <button class="btn" data-act="staff">Staff Room</button>
-    <button class="btn" data-act="shop">Break Room</button>
-    <button class="btn" data-act="menu">Main Menu</button></div>`, null);
+    <div class="stats"><div><b>${mm}:${ss}</b>${T('ui.survived')}</div><div><b>${G.kills}</b>${T('ui.shoppers')}</div><div><b>${G.level}</b>${T('ui.levelWord')}</div><div><b>💰 ${total}</b>${T('ui.tipsBonus', { n: bonus })}</div></div>
+    <div class="menu">${DEMO ? `<button class="btn" data-act="wishlist">${T('ui.wishlistFull')}</button>` : win ? `<button class="btn" data-act="overtime">${T('ui.workOvertime')}</button>` : ''}
+    <button class="btn" data-act="start">${T('ui.anotherShift')}</button>
+    <button class="btn" data-act="staff">${T('ui.staffRoom')}</button>
+    <button class="btn" data-act="shop">${T('ui.breakRoom')}</button>
+    <button class="btn" data-act="menu">${T('ui.mainMenu')}</button></div>`, null);
 }
 
 function startOvertime() {
@@ -1281,17 +1293,17 @@ function startOvertime() {
   state = 'play';
   show('');
   startMusic(124);
-  announce('OVERTIME. The doors never close.', true);
+  announce(T('ui.overtimeStart'), true);
 }
 
 function mapUnlocked(id) { return !(DEMO && id !== 'floor') && (save.stats.wins || 0) >= (STAGES[id].unlockWins || 0); }
 
 function showMaps() {
-  show(`<h2>Choose a Department</h2><div class="grid" data-cols="2">${Object.entries(STAGES).map(([id, m]) => {
+  show(`<h2>${T('ui.chooseDept')}</h2><div class="grid" data-cols="2">${Object.entries(STAGES).map(([id, m]) => {
     const open = mapUnlocked(id);
     return `<button class="btn card${(save.map || 'floor') === id ? ' sel' : ''}" data-act="map" data-arg="${id}" ${open ? '' : 'disabled'}>
-      <b>${m.name}</b><span>${m.desc}</span><i>${open ? 'Clock in' : DEMO && id !== 'floor' ? '🔒 Full game' : '🔒 Survive a full shift'}</i></button>`;
-  }).join('')}</div><button class="btn back" data-act="menu">Back</button>`, showMenu);
+      <b>${T(`maps.${id}.name`)}</b><span>${T(`maps.${id}.desc`)}</span><i>${open ? T('ui.clockInMap') : '🔒 ' + T(DEMO && id !== 'floor' ? 'ui.fullGame' : 'ui.surviveShift')}</i></button>`;
+  }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
 }
 
 // ---------- loop ----------
@@ -1331,6 +1343,7 @@ function fit() {
 }
 addEventListener('resize', fit);
 
+setLang(save.settings.lang || detectLang());
 buildSprites(CHARACTERS);
 fit();
 audio.sfx = save.settings.sfx; audio.music = save.settings.music;
@@ -1351,6 +1364,8 @@ window.__db = {
   get G() { return G; }, get state() { return state; }, get save() { return save; },
   start: (charId = 'stocker', seed = 1, map = 'floor') => startRun(charId, seed, map),
   overtime: () => startOvertime(),
+  setLang: (c) => { setLang(c); if (state === 'menu') showMenu(); },
+  missingKeys,
   setSpeed: (s) => (speed = s),
   setAutopilot: (v) => (autopilot = v),
   choose: (i = 0) => ACTIONS.choose(i),
