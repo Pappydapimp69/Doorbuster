@@ -8,6 +8,7 @@ and survive until 11:00 AM.
 - 9 shopper types, elite "Manager Requesters", three managers to beat
 - Three departments: Main Floor, Electronics (unlocks after a full shift), Toys (unlocks after a shift in Electronics)
 - Four weapons unlock at milestones; Inventory screen with records and evolution recipes
+- Sale tags on the floor give random power-ups; coffee spills slow shoppers
 - Endless Overtime after a win; timed events (Doorbuster Rush, Flash Sales)
 - Break Room meta upgrades and 4 unlockable staff, paid in tips
 - Keyboard, mouse and gamepad (Steam Deck friendly); all sound synthesized, no assets to license
@@ -39,10 +40,11 @@ npm run i18n       # every language: missing strings, overflow, screenshots
 ```
 
 The bot kites with a 16-direction danger score and levels owned weapons
-first. Current balance (20 runs each): a fresh save wins about 1 in 5 with a
-median of ~5 minutes; a maxed Break Room wins ~3 in 4; Electronics with a
-maxed save about 1 in 2; Toys about 1 in 4; Overtime ends a strong build in
-~4 minutes.
+first. Current balance (40 fresh/veteran runs, 20 per department): a fresh
+save wins about 38%; a maxed Break Room 88%; Electronics with a maxed save
+45%; Toys 20%; Overtime ends a strong build in ~4 minutes. Use at least 20
+runs per number: 8-run batches swung by ±3 wins between code changes that
+shouldn't matter.
 
 All tuning is in `src/data.js`.
 

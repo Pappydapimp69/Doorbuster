@@ -1,6 +1,6 @@
 // Localization. English UI strings live here; game content (weapon names etc.)
 // comes from data.js. Each language file overrides any subset of both.
-import { WEAPONS, PASSIVES, EVOLUTIONS, MAPS, CHARACTERS, META, ACHIEVEMENTS, ANNOUNCEMENTS } from './data.js';
+import { WEAPONS, PASSIVES, EVOLUTIONS, MAPS, CHARACTERS, META, ACHIEVEMENTS, ANNOUNCEMENTS, POWERUPS } from './data.js';
 import zh from './lang/zh.js';
 import ru from './lang/ru.js';
 import es from './lang/es.js';
@@ -54,6 +54,7 @@ function english() {
     characters: pick(CHARACTERS, ['name', 'desc']),
     meta: pick(META, ['name', 'desc']),
     achievements: { ...ACHIEVEMENTS },
+    powerups: Object.fromEntries(POWERUPS.map((p) => [p.id, { name: p.name, desc: p.desc }])),
     announcements: ANNOUNCEMENTS,
   };
 }

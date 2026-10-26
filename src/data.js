@@ -206,11 +206,11 @@ export const WAVES = [
 export const MAPS = {
   floor: {
     name: 'Main Floor', desc: 'Groceries, home goods, and 400 people who woke up at 3 AM for a toaster.',
-    tiles: ['#d8d5cc', '#cfccc2'], stripe: '#e6c84a', bg: '#c9c6bd', waves: WAVES, boss: 'Regional Manager', bossHp: 1, hpMul: 1, speedMul: 1,
+    tiles: ['#d8d5cc', '#cfccc2'], stripe: '#e6c84a', bg: '#c9c6bd', waves: WAVES, boss: 'Regional Manager', bossHp: 1, hpMul: 1, speedMul: 1, dmgMul: 1,
   },
   electronics: {
     name: 'Electronics', desc: 'TVs, consoles, and the people who camped in the parking lot for them. Unlocks after your first full shift.',
-    tiles: ['#2b2f3a', '#252934'], stripe: '#3fd0ff', bg: '#1e2129', unlockWins: 1, boss: 'District Manager', bossHp: 1.5, hpMul: 1.5, speedMul: 1.1,
+    tiles: ['#2b2f3a', '#252934'], stripe: '#3fd0ff', bg: '#1e2129', unlockWins: 1, boss: 'District Manager', bossHp: 1.5, hpMul: 1.5, speedMul: 1.1, dmgMul: 1.2,
     waves: [
       { shopper: 2, walker: 1 },
       { shopper: 2, walker: 2, scalper: 1 },
@@ -228,7 +228,7 @@ export const MAPS = {
 
 MAPS.toys = {
   name: 'Toys', desc: 'The aisle every parent fears. Unlocks after a full shift in Electronics.',
-  tiles: ['#f3d9e6', '#ead0de'], stripe: '#53b96f', bg: '#e9cfdc', unlockMap: 'electronics', boss: 'Store Owner', bossHp: 2.6, hpMul: 2.5, speedMul: 1.15,
+  tiles: ['#f3d9e6', '#ead0de'], stripe: '#53b96f', bg: '#e9cfdc', unlockMap: 'electronics', boss: 'Store Owner', bossHp: 2.6, hpMul: 2.5, speedMul: 1.15, dmgMul: 1.7,
   waves: [
     { shopper: 2, kid: 2 },
     { shopper: 2, kid: 3, walker: 1 },
@@ -263,6 +263,19 @@ export const META = {
   rerolls:   { name: 'Price Check', desc: '+1 reroll per run', max: 3, cost: [50, 120, 220], stat: 'rerolls', per: 1 },
   secondWind:{ name: 'Second Wind', desc: 'Revive once per run', max: 1, cost: [400], stat: 'revives', per: 1 },
 };
+
+// Sale tags lying on the floor: walk over one for a random power-up.
+// Every power-up says what it does (desc is shown on pickup and in the HUD).
+export const POWERUPS = [
+  { id: 'deal', name: 'Doorbuster Deal', desc: 'Double damage for 7s', icon: '💥', dur: 7, weight: 3 },
+  { id: 'rush', name: 'Rush Hour', desc: '+50% move speed for 8s', icon: '⚡', dur: 8, weight: 3 },
+  { id: 'markdown', name: 'Markdown', desc: 'Weapons fire twice as fast for 6s', icon: '⏩', dur: 6, weight: 3 },
+  { id: 'freeze', name: 'Price Freeze', desc: 'Shoppers frozen for 3s', icon: '🧊', dur: 3, weight: 2 },
+  { id: 'clearance', name: 'Clearance', desc: 'Every receipt on screen flies to you', icon: '🧲', weight: 3 },
+  { id: 'sample', name: 'Free Sample', desc: 'Heal 30 HP', icon: '🍪', weight: 3 },
+  { id: 'evacuate', name: 'Everything Must Go', desc: 'Knocks out shoppers around you', icon: '🚨', weight: 0.5 },
+];
+export const POWERUP_DENSITY = 0.0015; // chance per floor tile (24px); about one on screen at a time
 
 export const ACHIEVEMENTS = {
   FIRST_SHIFT: 'Clocked Out — survive a full shift',

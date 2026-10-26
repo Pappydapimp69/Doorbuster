@@ -1,6 +1,6 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES, UNLOCKS,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes, currentSong } from './audio.js';
@@ -167,7 +167,7 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
     rerolls: metaLv('rerolls'), revives: metaLv('secondWind'), banished: new Set(),
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
-    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, evolved: 0, choices: null, grid: new Map(),
+    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, evolved: 0, choices: null, grid: new Map(),
   };
   G.stats = computeStats();
   G.player.hp = G.stats.maxHp;
@@ -284,13 +284,14 @@ function spawnBoss(mult) {
 function updateEnemies(dt) {
   const p = G.player;
   for (const e of G.enemies) {
+    if (G.buffs.freeze && !e.def.boss) { e.flash = 0; e.kx *= 0.8; e.ky *= 0.8; continue; } // Price Freeze: no moving, shooting or summoning
     e.t += dt;
     e.flash = Math.max(0, e.flash - dt);
     e.slow = Math.max(0, e.slow - dt);
     let dx = p.x - e.x, dy = p.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
     dx /= d; dy /= d;
-    let sp = e.speed * (e.slow > 0 ? 0.5 : 1);
+    let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1);
     let mx = dx, my = dy;
     if (e.def.ranged) {
       if (d < 100) { mx = -dx * 0.6; my = -dy * 0.6; } else if (d < 130) { mx = 0; my = 0; }
@@ -343,8 +344,9 @@ function updateEnemies(dt) {
   if (p.inv <= 0) {
     nearby(p.x, p.y, 24, tmp);
     for (const e of tmp) {
+      if (G.buffs.freeze && !e.def.boss) continue;
       const rr = e.r + 5;
-      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
+      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * G.stage.dmgMul * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
     }
   }
 }
@@ -392,6 +394,7 @@ function hurtPlayer(raw, src = '?') {
 let curSrc = '?';
 function damageEnemy(e, dmg, kx, ky, knock) {
   if (e.dead) return;
+  if (G.buffs.deal && curSrc !== 'powerup') dmg *= 2;
   G.dmgDealt[curSrc] = (G.dmgDealt[curSrc] || 0) + Math.min(dmg, Math.max(0, e.hp));
   e.hp -= dmg;
   e.flash = 0.08;
@@ -608,7 +611,7 @@ function updateWeapons(dt) {
       }
       continue;
     }
-    w.cd -= dt;
+    w.cd -= dt * (G.buffs.markdown ? 2 : 1);
     if (w.cd <= 0) {
       curSrc = w.id;
       const n0 = [G.projs.length, G.fx.length, G.puddles.length, G.lobs.length];
@@ -684,7 +687,7 @@ function updateProjectiles(dt) {
   const p = G.player;
   for (const pr of G.eprojs) {
     pr.life -= dt; pr.x += pr.vx * dt; pr.y += pr.vy * dt;
-    if (p.inv <= 0 && dist2(pr, p) < (pr.r + 5) ** 2) { pr.life = 0; hurtPlayer(pr.dmg, pr.kind); }
+    if (p.inv <= 0 && dist2(pr, p) < (pr.r + 5) ** 2) { pr.life = 0; hurtPlayer(pr.dmg * G.stage.dmgMul, pr.kind); }
   }
   G.eprojs = G.eprojs.filter((q) => q.life > 0);
 
@@ -862,7 +865,8 @@ function updatePlayer(dt) {
     if (Math.abs(mx) > 0.1) p.face = mx > 0 ? 1 : -1;
     p.anim += dt * 10;
   }
-  p.x += mx * G.stats.speed * dt; p.y += my * G.stats.speed * dt;
+  const spd = G.stats.speed * (G.buffs.rush ? 1.5 : 1);
+  p.x += mx * spd * dt; p.y += my * spd * dt;
   p.inv = Math.max(0, p.inv - dt);
 }
 
@@ -871,6 +875,9 @@ function updatePlayer(dt) {
 function autoMove() {
   const p = G.player, look = 0.35 * G.stats.speed;
   nearby(p.x, p.y, 120, tmp);
+  const nearTags = [];
+  const ti = Math.floor(p.x / TILE), tj = Math.floor(p.y / TILE);
+  for (let i = ti - 6; i <= ti + 6; i++) for (let j = tj - 6; j <= tj + 6; j++) if (tagAt(i, j)) nearTags.push([i * TILE + 12, j * TILE + 12]);
   let best = [0, 0], bestScore = -Infinity;
   for (let i = 0; i < 17; i++) {
     const a = (i / 16) * Math.PI * 2;
@@ -888,6 +895,7 @@ function autoMove() {
     let g = 0;
     for (const gem of G.gems) { const d2 = (gem.x - x) ** 2 + (gem.y - y) ** 2; if (d2 < 150 * 150) g += 30 / (Math.sqrt(d2) + 20); }
     for (const dr of G.drops) { const d2 = (dr.x - x) ** 2 + (dr.y - y) ** 2; if (d2 < 250 * 250) g += 60 / (Math.sqrt(d2) + 20); }
+    for (const t of nearTags) { const d2 = (t[0] - x) ** 2 + (t[1] - y) ** 2; g += 40 / (Math.sqrt(d2) + 20); }
     score += g * 0.3;
     // Prefer to keep moving, and drift around the spawn ring rather than out of it.
     if (i === 16) score -= 0.3;
@@ -931,7 +939,9 @@ function update(dt) {
   G.t += dt;
   G.comboT -= dt; if (G.comboT <= 0) G.combo = 0;
   G.pad = pollPadCached;
+  for (const k in G.buffs) { G.buffs[k] -= dt; if (G.buffs[k] <= 0) delete G.buffs[k]; }
   updatePlayer(dt);
+  checkTags();
   director(dt);
   updateEnemies(dt);
   updateWeapons(dt);
@@ -964,6 +974,7 @@ function render() {
   drawFloor();
   cx.save();
   cx.translate(-camX, -camY);
+  drawTags();
   for (const pd of G.puddles) {
     const a = Math.min(1, pd.life / 0.5, (pd.max - pd.life) / 0.2);
     cx.globalAlpha = 0.55 * a;
@@ -999,6 +1010,7 @@ function render() {
     cx.fillStyle = 'rgba(0,0,0,0.18)';
     cx.fillRect(-s.width / 2 + 2, s.height / 2 - 1 + bob, s.width - 4, 2);
     cx.drawImage(s, -Math.round(s.width / 2), -Math.round(s.height / 2));
+    if (G.buffs.freeze && !e.def.boss) { cx.globalAlpha = 0.45; cx.drawImage(SPR[e.def.sprite + '_flash'][e.var % arr.length], -Math.round(s.width / 2), -Math.round(s.height / 2)); cx.globalAlpha = 1; }
     cx.restore();
     if (e.def.elite || e.def.boss) {
       const bw = e.def.boss ? 40 : 18;
@@ -1095,6 +1107,70 @@ function drawPlayer() {
   cx.restore();
 }
 
+// ---------- floor power-ups ----------
+const TILE = 24;
+const tileHash = (i, j, salt = 0) => (((i * 374761393) ^ (j * 668265263) ^ (salt * 2246822519)) >>> 0) % 100000 / 100000;
+// A sale tag sits on tile (i, j) if the hash says so and nobody took it yet.
+function tagAt(i, j) {
+  if (Math.abs(i) + Math.abs(j) < 4) return false; // not under the player at the start
+  return tileHash(i, j, 7) < POWERUP_DENSITY && !G.usedTags.has(i + ',' + j);
+}
+// Coffee spills (the brown floor stains) slow shoppers who walk through them.
+function onSpill(x, y) {
+  const i = Math.floor(x / TILE), j = Math.floor(y / TILE);
+  const r = tileHash(i, j);
+  if (r < 0.02 || r >= 0.035) return false;
+  return Math.abs(x - (i * TILE + 12)) < 8 && Math.abs(y - (j * TILE + 12)) < 5;
+}
+
+function pickPowerup() {
+  let sum = 0;
+  for (const p of POWERUPS) sum += p.weight;
+  let r = rng() * sum;
+  for (const p of POWERUPS) { r -= p.weight; if (r <= 0) return p; }
+  return POWERUPS[0];
+}
+
+function checkTags() {
+  const p = G.player, i0 = Math.floor(p.x / TILE), j0 = Math.floor(p.y / TILE);
+  for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) {
+    if (!tagAt(i, j)) continue;
+    if (Math.hypot(p.x - (i * TILE + 12), p.y - (j * TILE + 12)) > 11) continue;
+    G.usedTags.add(i + ',' + j); // gone the instant it's taken
+    applyPowerup(pickPowerup(), i * TILE + 12, j * TILE + 12);
+  }
+}
+
+function applyPowerup(pu, x, y) {
+  G.powerups++;
+  const p = G.player;
+  if (pu.dur) G.buffs[pu.id] = pu.dur;
+  if (pu.id === 'clearance') for (const g of G.gems) if (Math.abs(g.x - p.x) < W / 2 && Math.abs(g.y - p.y) < H / 2) g.pull = true;
+  if (pu.id === 'sample') p.hp = Math.min(G.stats.maxHp, p.hp + 30);
+  if (pu.id === 'evacuate') {
+    G.fx.push({ kind: 'ring', x: p.x, y: p.y, r: 4, maxR: 130, life: 0.5, max: 0.5, dmg: 0, knock: 260, hits: new Set() });
+    for (const e of G.enemies) if (!e.def.boss && dist2(e, p) < 130 * 130) { curSrc = 'powerup'; damageEnemy(e, e.def.elite ? 150 : 9999, 0, 0, 0); }
+    G.shake = Math.max(G.shake, 0.6);
+  }
+  for (let k = 0; k < 16; k++) G.parts.push({ x, y, vx: rand(-70, 70), vy: rand(-90, 10), life: 0.5, c: k % 2 ? '#e04848' : '#ffffff' });
+  sfx('evolve');
+  announce(`${pu.icon} ${T(`powerups.${pu.id}.name`)}: ${T(`powerups.${pu.id}.desc`)}`);
+}
+
+function drawTags() {
+  const x0 = Math.floor(camX / TILE), y0 = Math.floor(camY / TILE);
+  for (let i = x0 - 1; i <= x0 + W / TILE + 1; i++) for (let j = y0 - 1; j <= y0 + H / TILE + 1; j++) {
+    if (!tagAt(i, j)) continue;
+    const x = i * TILE + 12, y = j * TILE + 12 + Math.round(Math.sin(G.t * 4 + i) * 1.5);
+    // A red price tag on a string, with a glint: reads as a pickup, not floor.
+    cx.fillStyle = 'rgba(0,0,0,0.2)'; cx.fillRect(x - 5, j * TILE + 18, 10, 2);
+    cx.fillStyle = '#1b1a24'; cx.fillRect(x - 6, y - 5, 12, 9); cx.fillRect(x - 8, y - 3, 2, 5);
+    cx.fillStyle = '#e04848'; cx.fillRect(x - 5, y - 4, 10, 7); cx.fillRect(x - 7, y - 2, 2, 3);
+    cx.fillStyle = '#ffffff'; cx.fillRect(x - 5, y - 1, 1, 1); cx.fillRect(x - 2, y - 2, 5, 1); cx.fillRect(x - 2, y, 4, 1);
+    if (Math.floor(G.t * 3 + i * 7) % 6 === 0) { cx.fillStyle = '#fff6b0'; cx.fillRect(x + 4, y - 7, 1, 3); cx.fillRect(x + 3, y - 6, 3, 1); }
+  }
+}
+
 function drawFloor() {
   const T = 24;
   const x0 = Math.floor(camX / T), y0 = Math.floor(camY / T);
@@ -1106,8 +1182,7 @@ function drawFloor() {
     const r = (h % 1000) / 1000;
     // Aisle stripes and the odd floor decal for texture.
     if (((i % 12) + 12) % 12 === 0) { cx.fillStyle = G.stage.stripe; cx.fillRect(sx, sy, 2, T); }
-    if (r < 0.02) { cx.fillStyle = '#e04848'; cx.fillRect(sx + 6, sy + 8, 10, 6); cx.fillStyle = '#fff'; cx.fillRect(sx + 8, sy + 10, 6, 2); }
-    else if (r < 0.035) { cx.fillStyle = 'rgba(140,90,40,0.25)'; cx.beginPath(); cx.ellipse(sx + 12, sy + 12, 7, 4, 0, 0, Math.PI * 2); cx.fill(); }
+    if (r >= 0.02 && r < 0.035) { cx.fillStyle = 'rgba(140,90,40,0.25)'; cx.beginPath(); cx.ellipse(sx + 12, sy + 12, 7, 4, 0, 0, Math.PI * 2); cx.fill(); }
     else if (r < 0.05) { cx.fillStyle = 'rgba(0,0,0,0.07)'; cx.fillRect(sx + 6, sy + 10, 9, 2); } // scuff (not white: receipts are)
   }
 }
@@ -1151,7 +1226,7 @@ function renderHud() {
   const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('');
   const html = `<div class="xpbar"><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>${T('ui.lv', { n: G.level })}</span></div>
     <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${T(G.overtime ? 'ui.overtimeHud' : G.t < BOSS_AT ? 'ui.shiftEnds' : 'ui.holdOn')}</small></div>
-    <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}${G.combo >= 25 ? `<div class="combo" style="--c:${Math.min(1, G.combo / 300)}">×${Math.floor(G.combo / 5) * 5}</div>` : ''}</div></div><div class="slots">${ps}</div>`;
+    <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}${G.combo >= 25 ? `<div class="combo" style="--c:${Math.min(1, G.combo / 300)}">×${Math.floor(G.combo / 5) * 5}</div>` : ''}</div></div><div class="slots">${ps}</div>${Object.keys(G.buffs).length ? `<div class="buffs">${Object.entries(G.buffs).map(([id, t]) => `<span title="${T(`powerups.${id}.desc`)}">${POWERUPS.find((p) => p.id === id).icon} ${T(`powerups.${id}.name`)} <b>${Math.ceil(t)}s</b></span>`).join('')}</div>` : ''}`;
   if (html !== hudCache) { ui.hud.innerHTML = html; hudCache = html; }
 }
 
@@ -1496,6 +1571,13 @@ window.__db = {
   overtime: () => startOvertime(),
   setLang: (c) => { setLang(c); if (state === 'menu') showMenu(); },
   missingKeys,
+  // Nearest untaken sale tag to the player, in world units.
+  nearestTag: () => {
+    const p = G.player, ti = Math.floor(p.x / TILE), tj = Math.floor(p.y / TILE);
+    let best = null;
+    for (let r = 1; r < 40 && !best; r++) for (let i = ti - r; i <= ti + r; i++) for (let j = tj - r; j <= tj + r; j++) if (!best && tagAt(i, j)) best = { x: i * TILE + 12, y: j * TILE + 12 };
+    return best;
+  },
   currentSong,
   setSpeed: (s) => (speed = s),
   setAutopilot: (v) => (autopilot = v),
