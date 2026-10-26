@@ -3,7 +3,7 @@ import {
   WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
-import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes } from './audio.js';
+import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes, currentSong } from './audio.js';
 import { loadSave, writeSave } from './save.js';
 import { unlockAchievement } from './steam.js';
 import { T, setLang, lang, detectLang, LANGS, missingKeys } from './i18n.js';
@@ -84,11 +84,19 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Tab'].includes(e.key)) e.preventDefault();
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
-  initAudio();
+  ensureAudio();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => { keys.clear(); if (state === 'play') pause(); });
-addEventListener('pointerdown', () => initAudio());
+addEventListener('pointerdown', () => ensureAudio());
+
+// Browsers only allow audio after a gesture; the menu theme starts on the first one.
+let audioReady = false;
+function ensureAudio() {
+  initAudio();
+  if (!audioReady && state === 'menu') startMusic('menu');
+  audioReady = true;
+}
 
 let padPrev = {};
 function pollPad() {
@@ -268,6 +276,7 @@ function spawnBoss(mult) {
   b.hp = b.maxHp = ENEMIES.boss.hp * G.stage.bossHp * mult;
   b.var = G.map === 'electronics' ? 1 : 0;
   G.boss = b; G.bossDead = false;
+  startMusic('boss');
   G.shake = Math.max(G.shake, 0.8);
 }
 
@@ -413,6 +422,7 @@ function killEnemy(e) {
   }
   if (e.def.boss) {
     G.bossDead = true;
+    startMusic(G.overtime ? 'overtime' : 'shift');
     G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: 100 });
     announce(T('ui.bossGone', { boss: bossName() }), true);
     achieve('BOSS_DOWN');
@@ -1121,7 +1131,7 @@ const ACTIONS = {
   shop: () => showShop(),
   staff: () => showStaff(),
   settings: () => showSettings(state === 'paused' ? showPause : showMenu),
-  menu: () => { stopMusic(); state = 'menu'; G = null; showMenu(); },
+  menu: () => { state = 'menu'; G = null; showMenu(); startMusic('menu'); },
   quit: () => window.close(),
   resume: () => resume(),
   choose: (i) => { const c = G.choices[+i]; sfx('pick'); applyChoice(c); G.pendingLevels--; G.choices = null; if (G.pendingLevels > 0) openLevelUp(); else { state = 'play'; show(''); } },
@@ -1243,7 +1253,7 @@ function startRun(charId, seed, map) {
   newRun(charId, seed, map);
   state = 'play';
   show('');
-  startMusic();
+  startMusic('shift');
   announce(T('ui.doorsOpen'), true);
 }
 
@@ -1251,6 +1261,7 @@ function endRun(win) {
   if (state === 'over') return;
   state = 'over';
   stopMusic();
+  setTimeout(() => { if (state === 'over') startMusic('menu'); }, 2200);
   clearTimeout(announce.t); ui.banner.className = '';
   sfx(win ? 'win' : 'lose');
   const survived = Math.floor(G.t);
@@ -1292,7 +1303,7 @@ function startOvertime() {
   G.overtime = true; G.otStart = G.t; G.otKills = G.kills; G.tipsRun = 0;
   state = 'play';
   show('');
-  startMusic(124);
+  startMusic('overtime');
   announce(T('ui.overtimeStart'), true);
 }
 
@@ -1366,6 +1377,7 @@ window.__db = {
   overtime: () => startOvertime(),
   setLang: (c) => { setLang(c); if (state === 'menu') showMenu(); },
   missingKeys,
+  currentSong,
   setSpeed: (s) => (speed = s),
   setAutopilot: (v) => (autopilot = v),
   choose: (i = 0) => ACTIONS.choose(i),
