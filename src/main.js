@@ -1390,12 +1390,30 @@ function paintFocus() {
 function menuInput() {
   const list = btns();
   if (!list.length) return;
-  const cols = +(ui.screen.querySelector('[data-cols]')?.dataset.cols || 1);
-  const move = (d) => { focusIdx = (focusIdx + d + list.length) % list.length; paintFocus(); sfx('ui'); };
-  if (pressed.has('ArrowDown') || pressed.has('KeyS')) move(cols);
-  if (pressed.has('ArrowUp') || pressed.has('KeyW')) move(-cols);
-  if (pressed.has('ArrowRight') || pressed.has('KeyD')) move(1);
-  if (pressed.has('ArrowLeft') || pressed.has('KeyA')) move(-1);
+  // Spatial navigation: go to the nearest button that is actually in that
+  // direction on screen, so grids, tabs and a Back button below all connect.
+  const move = (dx, dy) => {
+    const from = list[focusIdx]?.getBoundingClientRect();
+    if (!from) { focusIdx = 0; paintFocus(); return; }
+    const fx = from.left + from.width / 2, fy = from.top + from.height / 2;
+    let best = -1, bestScore = Infinity;
+    list.forEach((b, i) => {
+      if (i === focusIdx || b.disabled) return;
+      const r = b.getBoundingClientRect();
+      const vx = r.left + r.width / 2 - fx, vy = r.top + r.height / 2 - fy;
+      const along = vx * dx + vy * dy, across = Math.abs(vx * dy - vy * dx);
+      if (along <= 4) return;
+      const score = along + across * 2;
+      if (score < bestScore) { bestScore = score; best = i; }
+    });
+    if (best < 0 && dx) best = (focusIdx + dx + list.length) % list.length; // row ends wrap like before
+    if (best < 0) return;
+    focusIdx = best; paintFocus(); sfx('ui');
+  };
+  if (pressed.has('ArrowDown') || pressed.has('KeyS')) move(0, 1);
+  if (pressed.has('ArrowUp') || pressed.has('KeyW')) move(0, -1);
+  if (pressed.has('ArrowRight') || pressed.has('KeyD')) move(1, 0);
+  if (pressed.has('ArrowLeft') || pressed.has('KeyA')) move(-1, 0);
   if (pressed.has('Enter') || pressed.has('Space')) list[focusIdx]?.click();
   for (let i = 1; i <= 4; i++) if (pressed.has('Digit' + i) && state === 'levelup') list[i - 1]?.click();
   if (pressed.has('KeyR') && state === 'levelup') $('#reroll')?.click();
