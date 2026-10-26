@@ -279,7 +279,7 @@ export const POWERUPS = [
 // crowd one strip it; empty shelves near you fill the riot meter; standing
 // still beside a shelf restocks it.
 export const RIOT = {
-  enabled: false,            // off until balanced; ?riot in the URL turns it on for testing
+  enabled: true,
   gridX: 9, gridY: 7,        // a shelf every 9 x 7 tiles (216 x 168 px)
   grabR: 26,                 // shoppers this close to a shelf take stock
   grabRate: 0.04,            // stock per second per shopper (cap below)
@@ -290,7 +290,7 @@ export const RIOT = {
   calmRate: 12,              // meter drain per second with no empty shelf on screen
   duration: 12,              // a riot lasts this long, then the meter starts from zero
   grace: 60,                 // no riot in the first minute of a shift
-  speed: 1.15, spawn: 1.3, dmg: 1, tipMul: 2, // riot pay: tips count double while it lasts
+  speed: 1.1, spawn: 1.2, dmg: 1, tipMul: 2, // riot pay: tips count double while it lasts
   rewardTips: 2, rewardXp: 3,
 };
 

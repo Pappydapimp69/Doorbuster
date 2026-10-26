@@ -8,6 +8,7 @@ and survive until 11:00 AM.
 - 9 shopper types, elite "Manager Requesters", three managers to beat
 - Three departments: Main Floor, Electronics (unlocks after a full shift), Toys (unlocks after a shift in Electronics)
 - Four weapons unlock at milestones; Inventory screen with records and evolution recipes
+- Restock or Riot: shoppers strip shelves, empty shelves fill a riot meter, stand still to restock for tips
 - Sale tags on the floor give random power-ups; coffee spills slow shoppers
 - Endless Overtime after a win; timed events (Doorbuster Rush, Flash Sales)
 - Break Room meta upgrades and 4 unlockable staff, paid in tips
