@@ -284,6 +284,7 @@ function spawnBoss(mult) {
 function updateEnemies(dt) {
   const p = G.player;
   for (const e of G.enemies) {
+    if (e.stunT > 0) { e.stunT -= dt; continue; } // Greeter's Welcome
     if (G.buffs.freeze && !e.def.boss) { e.flash = 0; e.kx *= 0.8; e.ky *= 0.8; continue; } // Price Freeze: no moving, shooting or summoning
     e.t += dt;
     e.flash = Math.max(0, e.flash - dt);
@@ -408,6 +409,7 @@ function hurtPlayer(raw, src = '?') {
 let curSrc = '?';
 function damageEnemy(e, dmg, kx, ky, knock) {
   if (e.dead) return;
+  if (skill() === 'elite' && (e.def.elite || e.def.boss)) dmg *= 1.6;
   if (G.buffs.deal && curSrc !== 'powerup') dmg *= 2;
   G.dmgDealt[curSrc] = (G.dmgDealt[curSrc] || 0) + Math.min(dmg, Math.max(0, e.hp));
   e.hp -= dmg;
@@ -437,6 +439,7 @@ function killEnemy(e) {
   if (rng() < 0.012 * G.stats.greed) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: G.rioting ? RIOT.tipMul : 1 });
   if (rng() < 0.006 && G.drops.filter((d) => d.kind === 'heart').length < 6) G.drops.push({ x: e.x, y: e.y, kind: 'heart' });
   if (e.def.elite) {
+    G.elites = (G.elites || 0) + 1;
     G.drops.push({ x: e.x, y: e.y, kind: 'box' });
     G.hitstop = 0.06;
   }
@@ -755,7 +758,7 @@ function updatePickups(dt) {
       if (dd < 7) {
         d.dead = true;
         if (d.kind === 'coin') { const v = Math.round(d.v * G.stats.greed); G.tipsRun += v; sfx('coin'); G.texts.push({ x: p.x, y: p.y - 16, v, life: 0.8, color: '#f5d142' }); }
-        if (d.kind === 'heart') { p.hp = Math.min(G.stats.maxHp, p.hp + 30); sfx('pick'); }
+        if (d.kind === 'heart') { p.hp = Math.min(G.stats.maxHp, p.hp + healAmt(30)); sfx('pick'); }
         if (d.kind === 'box') openBox();
       }
     }
@@ -852,7 +855,7 @@ function applyChoice(c) {
   } else if (c.type === 'passive') {
     G.passives[c.id] = (G.passives[c.id] || 0) + 1;
   } else if (c.type === 'snack') {
-    G.player.hp = Math.min(G.stats.maxHp, G.player.hp + 40);
+    G.player.hp = Math.min(G.stats.maxHp, G.player.hp + healAmt(40));
   } else if (c.type === 'tips') {
     G.tipsRun += 25;
   }
@@ -963,6 +966,16 @@ function update(dt) {
   updatePlayer(dt);
   checkTags();
   updateShelves(dt);
+  if (skill() === 'welcome') {
+    G.welcomeT = (G.welcomeT || 0) + dt;
+    if (G.welcomeT >= 15) {
+      G.welcomeT = 0;
+      const p = G.player;
+      G.fx.push({ kind: 'ring', x: p.x, y: p.y, r: 4, maxR: 90, life: 0.4, max: 0.4, dmg: 0, knock: 0, hits: new Set() });
+      for (const e of G.enemies) if (!e.def.boss && dist2(e, p) < 90 * 90) e.stunT = 1.5;
+      sfx('pa');
+    }
+  }
   director(dt);
   updateEnemies(dt);
   updateWeapons(dt);
@@ -1164,10 +1177,11 @@ function updateShelves(dt) {
     // Restock: stand still right next to it.
     sh.fill = 0;
     if (!p.moving && !G.dying && sh.stock < 1 && dist2(sh, p) < RIOT.restockR * RIOT.restockR) {
-      sh.stock = Math.min(1, sh.stock + RIOT.restockRate * dt);
+      sh.stock = Math.min(1, sh.stock + RIOT.restockRate * (skill() === 'restock' ? 2 : 1) * dt);
       sh.fill = 1;
       if (sh.stock >= 1 && sh.low) {
         sh.low = false; G.restocks++;
+        if (skill() === 'restock') p.hp = Math.min(G.stats.maxHp, p.hp + 8);
         G.tipsRun += RIOT.rewardTips; dropGem(sh.x, sh.y - 8, RIOT.rewardXp);
         G.texts.push({ x: sh.x, y: sh.y - 14, v: RIOT.rewardTips, life: 0.8, color: '#f5d142' });
         sfx('coin');
@@ -1259,7 +1273,7 @@ function applyPowerup(pu, x, y) {
   const p = G.player;
   if (pu.dur) G.buffs[pu.id] = pu.dur;
   if (pu.id === 'clearance') for (const g of G.gems) if (Math.abs(g.x - p.x) < W / 2 && Math.abs(g.y - p.y) < H / 2) g.pull = true;
-  if (pu.id === 'sample') p.hp = Math.min(G.stats.maxHp, p.hp + 30);
+  if (pu.id === 'sample') p.hp = Math.min(G.stats.maxHp, p.hp + healAmt(30));
   if (pu.id === 'evacuate') {
     G.fx.push({ kind: 'ring', x: p.x, y: p.y, r: 4, maxR: 130, life: 0.5, max: 0.5, dmg: 0, knock: 260, hits: new Set() });
     for (const e of G.enemies) if (!e.def.boss && dist2(e, p) < 130 * 130) { curSrc = 'powerup'; damageEnemy(e, e.def.elite ? 150 : 9999, 0, 0, 0); }
@@ -1411,8 +1425,8 @@ const ACTIONS = {
     const c = CHARACTERS[id];
     if (DEMO && !DEMO_STAFF.includes(id)) return;
     if (save.unlocked[id]) { save.selected = id; writeSave(save); sfx('pick'); showStaff(id); return; }
-    if (!staffEarned(id)) return; // staff are earned by playing, not bought
-    save.unlocked[id] = true; save.selected = id; writeSave(save); sfx('coin');
+    if (!staffEarned(id) || save.tips < c.cost) return; // earned by playing, then hired with tips
+    save.tips -= c.cost; save.unlocked[id] = true; save.selected = id; writeSave(save); sfx('coin');
     if (Object.keys(CHARACTERS).every((k) => save.unlocked[k])) achieve('FULL_STAFF');
     showStaff(id);
   },
@@ -1472,6 +1486,9 @@ function showInventory() {
     <button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
 }
 
+const skill = () => CHARACTERS[G.char].skill;
+const healAmt = (n) => (skill() === 'heal' ? n * 2 : n);
+
 // Staff unlock by lifetime performance. Each stat only ever goes up.
 function staffStat(stat) {
   if (stat === 'receipts') return save.receiptsGot || 0;
@@ -1496,7 +1513,7 @@ function showStaff(focusId) {
       const own = save.unlocked[id], sel = save.selected === id;
       return `<button class="btn card${sel ? ' sel' : ''}" data-act="hire" data-arg="${id}">
         <b>${T(`characters.${id}.name`)} ${ICONS[c.weapon]}</b><span>${T(`characters.${id}.desc`)}</span>
-        <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 ' + T('ui.fullGame') : sel ? T('ui.onShift') : own ? T('ui.select') : (staffEarned(id) ? '✅ Earned: hire' : '🔒 ' + c.earn.text + ` (${Math.min(staffStat(c.earn.stat), c.earn.need)}/${c.earn.need})`)}</i></button>`;
+        <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 ' + T('ui.fullGame') : sel ? T('ui.onShift') : own ? T('ui.select') : (staffEarned(id) ? `✅ Hire: 💰 ${c.cost}` : `🔒 ${c.earn.text} (${Math.min(staffStat(c.earn.stat), c.earn.need)}/${c.earn.need}) · 💰 ${c.cost}`)}</i></button>`;
     }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
   refocus(focusId && `[data-arg="${focusId}"]`);
 }
@@ -1586,6 +1603,8 @@ function endRun(win) {
   const total = G.tipsRun + bonus;
   save.tips += total;
   save.stats.totalKills += G.kills - (G.otKills || 0);
+  for (const [k, v] of [['restocks', G.restocks], ['elites', G.elites], ['powerups', G.powerups]]) save.stats[k] = (save.stats[k] || 0) + (v || 0) - ((G.banked || {})[k] || 0);
+  G.banked = { restocks: G.restocks, elites: G.elites, powerups: G.powerups };
   save.stats.riots = (save.stats.riots || 0) + (G.riots || 0) - (G.riotsBanked || 0); G.riotsBanked = G.riots || 0;
   if (win) {
     save.stats.wins++;

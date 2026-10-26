@@ -246,12 +246,21 @@ MAPS.toys = {
 export const CHARACTERS = {
   stocker: { name: 'Stocker', cost: 0, weapon: 'priceGun', desc: 'Starts with the Price Gun. Steady all-rounder.',
     vest: '#d8433b', mods: {} },
-  cashier: { name: 'Cashier', cost: 0, earn: { stat: 'receipts', need: 3000, text: 'Collect 3,000 receipts' }, weapon: 'couponStorm', desc: 'Coupon Storm. +15% XP.',
+  cashier: { name: 'Cashier', cost: 150, earn: { stat: 'receipts', need: 3000, text: 'Collect 3,000 receipts' }, weapon: 'couponStorm', desc: 'Coupon Storm. +15% XP.',
     vest: '#3aa55d', mods: { xp: 0.15 } },
-  security: { name: 'Security', cost: 0, earn: { stat: 'bossKills', need: 1, text: 'Dismiss a manager' }, weapon: 'boxCutter', desc: 'Box Cutter. +2 armor, +20 HP, 10% slower.',
+  security: { name: 'Security', cost: 300, earn: { stat: 'bossKills', need: 1, text: 'Dismiss a manager' }, weapon: 'boxCutter', desc: 'Box Cutter. +2 armor, +20 HP, 10% slower.',
     vest: '#2f4a8a', mods: { armor: 2, maxHp: 20, speed: -0.10 } },
-  janitor: { name: 'Night Janitor', cost: 0, earn: { stat: 'riots', need: 3, text: 'Survive 3 riots' }, weapon: 'wetFloor', desc: 'Wet Floor. +25% pickup range, -10% cooldowns.',
+  janitor: { name: 'Night Janitor', cost: 500, earn: { stat: 'riots', need: 3, text: 'Survive 3 riots' }, weapon: 'wetFloor', desc: 'Wet Floor. +25% pickup range, -10% cooldowns.',
     vest: '#7b7f8c', mods: { magnet: 0.25, cooldown: 0.10 } },
+  // Each of these has a skill no stat upgrade gives (handled by id in main.js).
+  greeter: { name: 'Greeter', cost: 600, earn: { stat: 'bestTime', need: 480, text: 'Survive 8 minutes' }, weapon: 'giftCard',
+    desc: 'Gift Card. Every 15s a "Welcome!" stuns shoppers around you.', vest: '#5bc0eb', mods: {}, skill: 'welcome' },
+  inventory: { name: 'Inventory Lead', cost: 700, earn: { stat: 'restocks', need: 25, text: 'Restock 25 shelves' }, weapon: 'carts',
+    desc: 'Runaway Carts. Restocks twice as fast; each full restock heals 8 HP.', vest: '#f08a24', mods: {}, skill: 'restock' },
+  lossprev: { name: 'Loss Prevention', cost: 800, earn: { stat: 'elites', need: 8, text: 'Knock out 8 Manager Requesters' }, weapon: 'alarm',
+    desc: 'Anti-Theft Alarm. +60% damage to elites and managers.', vest: '#1b1a24', mods: { armor: 1 }, skill: 'elite' },
+  deli: { name: 'Deli Cook', cost: 900, earn: { stat: 'powerups', need: 20, text: 'Grab 20 sale-tag power-ups' }, weapon: 'chicken',
+    desc: 'Rotisserie Chicken. +30 HP; every heal is doubled.', vest: '#f3f1ea', mods: { maxHp: 30 }, skill: 'heal' },
 };
 
 export const META = {
