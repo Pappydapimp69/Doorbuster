@@ -275,6 +275,24 @@ export const POWERUPS = [
   { id: 'sample', name: 'Free Sample', desc: 'Heal 30 HP', icon: '🍪', weight: 3 },
   { id: 'evacuate', name: 'Everything Must Go', desc: 'Knocks out shoppers around you', icon: '🚨', weight: 0.5 },
 ];
+// Restock or Riot. Shelves sit on a fixed grid of floor tiles; shoppers who
+// crowd one strip it; empty shelves near you fill the riot meter; standing
+// still beside a shelf restocks it.
+export const RIOT = {
+  enabled: false,            // off until balanced; ?riot in the URL turns it on for testing
+  gridX: 9, gridY: 7,        // a shelf every 9 x 7 tiles (216 x 168 px)
+  grabR: 26,                 // shoppers this close to a shelf take stock
+  grabRate: 0.04,            // stock per second per shopper (cap below)
+  grabCap: 0.3,
+  lureR: 120,                // plain shoppers within this of a stocked shelf go for it
+  restockR: 22, restockRate: 0.75,
+  fillPerEmpty: 4,           // riot meter per second per empty shelf on screen (one empty shelf: 25 s to riot)
+  calmRate: 12,              // meter drain per second with no empty shelf on screen
+  endAt: 50,                 // a riot ends when the meter falls below this
+  speed: 1.3, spawn: 1.5, dmg: 1.2, tipMul: 2, // riot pay: tips count double while it lasts
+  rewardTips: 2, rewardXp: 3,
+};
+
 export const POWERUP_DENSITY = 0.0015; // chance per floor tile (24px); about one on screen at a time
 
 export const ACHIEVEMENTS = {

@@ -87,3 +87,8 @@ h3 { margin: 6px 0 0; font-size: 16px; color: var(--yellow); letter-spacing: 1px
 .buffs { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .buffs span { background: rgba(224,72,72,.85); border: 2px solid #000; border-radius: 6px; padding: 2px 6px; font-size: 13px; }
 .buffs b { color: var(--yellow); }
+.riotbar { position: relative; height: 10px; margin-top: 4px; width: 40%; background: #000; border: 2px solid #000; border-radius: 4px; overflow: hidden; }
+.riotbar div { height: 100%; background: linear-gradient(90deg, #f5d142, #e04848); }
+.riotbar span { position: absolute; left: 6px; top: -4px; font-size: 11px; }
+.riotbar.on { animation: riotflash .4s steps(2) infinite; }
+@keyframes riotflash { to { border-color: #ff3b3b; } }

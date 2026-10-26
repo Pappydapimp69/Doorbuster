@@ -42,7 +42,7 @@ const results = [];
 for (let i = 0; i < runs; i++) {
   const r = await page.evaluate(([c, s]) => { __db.save.unlockedWeapons = {}; __db.save.stats = { runs: 0, wins: 0, bestTime: 0, totalKills: 0, bossKills: 0 }; __db.start(c, s); __db.setAutopilot(true); return __db.simulate(620); }, [chars[i % 4], 100 + i]);
   results.push({ char: chars[i % 4], ...r });
-  console.log(`${chars[i % 4].padEnd(9)} t=${r.t.toFixed(0).padStart(3)} ${r.state.padEnd(5)} lv=${r.level} kills=${r.kills} hp=${Math.round(r.hp)} dmg=${r.dmgTaken} boss=${r.boss} by=${JSON.stringify(Object.fromEntries(Object.entries(r.dmgBy).map(([k,v])=>[k,Math.round(v)])))}`);
+  console.log(`${chars[i % 4].padEnd(9)} t=${r.t.toFixed(0).padStart(3)} ${r.state.padEnd(5)} lv=${r.level} kills=${r.kills} hp=${Math.round(r.hp)} dmg=${r.dmgTaken} restock=${r.restocks} riots=${r.riots} boss=${r.boss} by=${JSON.stringify(Object.fromEntries(Object.entries(r.dmgBy).map(([k,v])=>[k,Math.round(v)])))}`);
 }
 await page.screenshot({ path: join(shots, 'over.png') });
 const summary = (rs) => `wins ${rs.filter((r) => r.t >= 600).length}/${rs.length}, median ${rs.map((r) => r.t).sort((a, b) => a - b)[Math.floor(rs.length / 2)].toFixed(0)}s`;

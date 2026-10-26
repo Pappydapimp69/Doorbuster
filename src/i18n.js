@@ -40,6 +40,10 @@ const UI = {
   receiptLabel: 'RECEIPT: walk over it',
   fullscreen: 'Toggle fullscreen',
   surviveIn: 'Survive a shift in {map}',
+  riot: 'RIOT! THE SHELVES ARE EMPTY. TIPS PAY DOUBLE.',
+  riotOver: 'The crowd calms down.',
+  riotHud: 'RIOT', riotHudOn: 'RIOT!',
+  shelfTip: 'Shoppers strip shelves bare. Empty shelves fill the RIOT meter. Stand still next to a shelf to restock it for tips.',
   clock24: false,
 };
 

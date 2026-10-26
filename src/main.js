@@ -1,6 +1,6 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY, RIOT,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes, currentSong } from './audio.js';
@@ -167,7 +167,7 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
     rerolls: metaLv('rerolls'), revives: metaLv('secondWind'), banished: new Set(),
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
-    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, evolved: 0, choices: null, grid: new Map(),
+    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
   };
   G.stats = computeStats();
   G.player.hp = G.stats.maxHp;
@@ -234,7 +234,7 @@ function director(dt) {
   const rate = 2.2 + t / 16;
   {
     // Bosses get the floor to themselves, mostly: the crowd thins but never stops.
-    G.spawnAcc += rate * dt * (G.boss && !G.bossDead ? 0.35 : 1);
+    G.spawnAcc += rate * dt * (G.boss && !G.bossDead ? 0.35 : 1) * (G.rioting ? RIOT.spawn : 1);
     while (G.spawnAcc >= 1) {
       G.spawnAcc -= 1;
       if (G.enemies.length < target) spawnEnemy(weighted(G.stage.waves[minute]));
@@ -291,8 +291,19 @@ function updateEnemies(dt) {
     let dx = p.x - e.x, dy = p.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
     dx /= d; dy /= d;
-    let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1);
+    let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1) * (G.rioting ? RIOT.speed : 1);
     let mx = dx, my = dy;
+    // Plain shoppers go for nearby stock when the player isn't right on them.
+    if (riotOn() && e.type === 'shopper' && d > 60) {
+      if (!e.shelf || e.shelf.stock <= 0.02 || (e.t % 2 < dt)) {
+        e.shelf = null;
+        for (const sh of shelvesNear(e.x, e.y, RIOT.lureR)) if (sh.stock > 0.02 && (!e.shelf || dist2(sh, e) < dist2(e.shelf, e))) e.shelf = sh;
+      }
+      if (e.shelf) {
+        const sx = e.shelf.x - e.x, sy = e.shelf.y - e.y, sd = Math.hypot(sx, sy) || 1;
+        if (sd > 8) { mx = sx / sd; my = sy / sd; } else { mx = 0; my = 0; }
+      }
+    } else e.shelf = null;
     if (e.def.ranged) {
       if (d < 100) { mx = -dx * 0.6; my = -dy * 0.6; } else if (d < 130) { mx = 0; my = 0; }
       // Only shoot from on screen, so every shot can be seen coming.
@@ -346,7 +357,7 @@ function updateEnemies(dt) {
     for (const e of tmp) {
       if (G.buffs.freeze && !e.def.boss) continue;
       const rr = e.r + 5;
-      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * G.stage.dmgMul * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
+      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * G.stage.dmgMul * (G.rioting ? RIOT.dmg : 1) * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
     }
   }
 }
@@ -420,7 +431,7 @@ function killEnemy(e) {
   if (e.def.splits) for (let i = 0; i < e.def.splits; i++) {
     const s = spawnEnemy('shopper', 0, 0); s.x = e.x + rand(-8, 8); s.y = e.y + rand(-8, 8);
   }
-  if (rng() < 0.03 * G.stats.greed) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: 1 });
+  if (rng() < 0.03 * G.stats.greed) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: G.rioting ? RIOT.tipMul : 1 });
   if (rng() < 0.006 && G.drops.filter((d) => d.kind === 'heart').length < 6) G.drops.push({ x: e.x, y: e.y, kind: 'heart' });
   if (e.def.elite) {
     G.drops.push({ x: e.x, y: e.y, kind: 'box' });
@@ -438,7 +449,7 @@ function killEnemy(e) {
 }
 
 function dropGem(x, y, v) {
-  if (G.gems.length > 220) {
+  if (G.gems.length > 120) {
     // Fold into an existing far gem instead of growing the list.
     const g = G.gems[Math.floor(rng() * G.gems.length)];
     g.v += v; return;
@@ -875,6 +886,7 @@ function updatePlayer(dt) {
 function autoMove() {
   const p = G.player, look = 0.35 * G.stats.speed;
   nearby(p.x, p.y, 120, tmp);
+  const lowShelves = riotOn() ? shelvesNear(p.x, p.y, 200).filter((sh) => sh.stock < 0.7) : [];
   const nearTags = [];
   const ti = Math.floor(p.x / TILE), tj = Math.floor(p.y / TILE);
   for (let i = ti - 6; i <= ti + 6; i++) for (let j = tj - 6; j <= tj + 6; j++) if (tagAt(i, j)) nearTags.push([i * TILE + 12, j * TILE + 12]);
@@ -895,10 +907,15 @@ function autoMove() {
     let g = 0;
     for (const gem of G.gems) { const d2 = (gem.x - x) ** 2 + (gem.y - y) ** 2; if (d2 < 150 * 150) g += 30 / (Math.sqrt(d2) + 20); }
     for (const dr of G.drops) { const d2 = (dr.x - x) ** 2 + (dr.y - y) ** 2; if (d2 < 250 * 250) g += 60 / (Math.sqrt(d2) + 20); }
+    for (const sh of lowShelves) { const d = Math.hypot(sh.x - x, sh.y - y); g += (90 + G.riot) * (1 - sh.stock) / (d + 20); }
     for (const t of nearTags) { const d2 = (t[0] - x) ** 2 + (t[1] - y) ** 2; g += 40 / (Math.sqrt(d2) + 20); }
     score += g * 0.3;
     // Prefer to keep moving, and drift around the spawn ring rather than out of it.
-    if (i === 16) score -= 0.3;
+    if (i === 16) {
+      score -= 0.3;
+      // Standing still at a shelf that needs stock is worth some risk.
+      for (const sh of lowShelves) if (dist2(sh, p) < (RIOT.restockR - 4) ** 2) score += 2 * (1 - sh.stock) + G.riot / 50;
+    }
     if (score > bestScore) { bestScore = score; best = [mx, my]; }
   }
   return best;
@@ -942,6 +959,7 @@ function update(dt) {
   for (const k in G.buffs) { G.buffs[k] -= dt; if (G.buffs[k] <= 0) delete G.buffs[k]; }
   updatePlayer(dt);
   checkTags();
+  updateShelves(dt);
   director(dt);
   updateEnemies(dt);
   updateWeapons(dt);
@@ -974,6 +992,7 @@ function render() {
   drawFloor();
   cx.save();
   cx.translate(-camX, -camY);
+  drawShelves();
   drawTags();
   for (const pd of G.puddles) {
     const a = Math.min(1, pd.life / 0.5, (pd.max - pd.life) / 0.2);
@@ -1107,6 +1126,91 @@ function drawPlayer() {
   cx.restore();
 }
 
+// ---------- Restock or Riot ----------
+// A shelf's centre in world units for grid cell (gi, gj).
+const shelfPos = (gi, gj) => ({ x: (gi * RIOT.gridX + 4) * 24 + 24, y: (gj * RIOT.gridY + 3) * 24 + 12 });
+function shelvesNear(x, y, r) {
+  const out = [];
+  const gx0 = Math.floor((x - r) / (RIOT.gridX * 24)) - 1, gx1 = Math.floor((x + r) / (RIOT.gridX * 24)) + 1;
+  const gy0 = Math.floor((y - r) / (RIOT.gridY * 24)) - 1, gy1 = Math.floor((y + r) / (RIOT.gridY * 24)) + 1;
+  for (let gi = gx0; gi <= gx1; gi++) for (let gj = gy0; gj <= gy1; gj++) {
+    const p = shelfPos(gi, gj);
+    if (Math.abs(p.x - x) > r || Math.abs(p.y - y) > r) continue;
+    const key = gi + ',' + gj;
+    let sh = G.shelves.get(key);
+    if (!sh) G.shelves.set(key, (sh = { key, x: p.x, y: p.y, stock: 1, low: false, fill: 0 }));
+    out.push(sh);
+  }
+  return out;
+}
+
+const riotOn = () => RIOT.enabled || new URLSearchParams(location.search).has('riot') || window.__riot;
+
+function updateShelves(dt) {
+  if (!riotOn()) return;
+  const p = G.player;
+  const near = shelvesNear(p.x, p.y, 300);
+  let empties = 0;
+  for (const sh of near) {
+    // Shoppers crowding the shelf grab stock.
+    nearby(sh.x, sh.y, RIOT.grabR, tmp);
+    let n = 0;
+    for (const e of tmp) if (!e.def.boss && dist2(e, sh) < RIOT.grabR * RIOT.grabR) n++;
+    if (n) sh.stock = Math.max(0, sh.stock - Math.min(RIOT.grabCap, n * RIOT.grabRate) * dt);
+    if (sh.stock < 0.5) sh.low = true;
+    // Restock: stand still right next to it.
+    sh.fill = 0;
+    if (!p.moving && !G.dying && sh.stock < 1 && dist2(sh, p) < RIOT.restockR * RIOT.restockR) {
+      sh.stock = Math.min(1, sh.stock + RIOT.restockRate * dt);
+      sh.fill = 1;
+      if (sh.stock >= 1 && sh.low) {
+        sh.low = false; G.restocks++;
+        G.tipsRun += RIOT.rewardTips; dropGem(sh.x, sh.y - 8, RIOT.rewardXp);
+        G.texts.push({ x: sh.x, y: sh.y - 14, v: RIOT.rewardTips, life: 0.8, color: '#f5d142' });
+        sfx('coin');
+      }
+    }
+    const onScreen = Math.abs(sh.x - p.x) < W / 2 && Math.abs(sh.y - p.y) < H / 2;
+    if (onScreen && sh.stock <= 0.02) empties++;
+  }
+  G.riot = clamp(G.riot + (empties ? empties * RIOT.fillPerEmpty : -RIOT.calmRate) * dt, 0, 100);
+  if (!G.rioting && G.riot >= 100) {
+    G.rioting = true; G.riots++;
+    announce(T('ui.riot'), true); sfx('boss'); G.shake = Math.max(G.shake, 0.6);
+  } else if (G.rioting && G.riot < RIOT.endAt) {
+    G.rioting = false; announce(T('ui.riotOver'));
+  }
+  if (empties && !save.shelfTipSeen) {
+    save.shelfTipSeen = true; writeSave(save);
+    const tip = $('#tip'); tip.textContent = T('ui.shelfTip'); tip.className = 'show';
+    setTimeout(() => (tip.className = ''), 9000);
+  }
+}
+
+function drawShelves() {
+  if (!riotOn()) return;
+  const COLORS = ['#e04848', '#4a90d9', '#f5d142', '#27ae60', '#e67e22', '#9b59b6'];
+  for (const sh of shelvesNear(camX + W / 2, camY + H / 2, Math.max(W, H))) {
+    const x = Math.round(sh.x - 22), y = Math.round(sh.y - 9);
+    cx.fillStyle = 'rgba(0,0,0,0.2)'; cx.fillRect(x + 2, y + 16, 44, 3);
+    cx.fillStyle = '#1b1a24'; cx.fillRect(x - 1, y - 1, 46, 19);
+    cx.fillStyle = '#8a8f99'; cx.fillRect(x, y, 44, 17);
+    cx.fillStyle = '#5d626d'; cx.fillRect(x, y + 8, 44, 1); cx.fillRect(x, y + 16, 44, 1);
+    // Products: as many as the stock level, left to right on two rows.
+    const n = Math.ceil(sh.stock * 20);
+    for (let k = 0; k < n; k++) {
+      const row = k % 2, col = Math.floor(k / 2);
+      cx.fillStyle = COLORS[(col * 2 + row + sh.key.length) % COLORS.length];
+      cx.fillRect(x + 2 + col * 4, y + 2 + row * 8, 3, 6);
+    }
+    if (sh.stock <= 0.02 && Math.floor(G.t * 4) % 2) { cx.fillStyle = '#ff3b3b'; cx.fillRect(x + 20, y - 10, 4, 6); cx.fillRect(x + 20, y - 3, 4, 2); }
+    if (sh.fill) {
+      cx.fillStyle = '#000'; cx.fillRect(x + 4, y - 6, 36, 4);
+      cx.fillStyle = '#7dff8a'; cx.fillRect(x + 5, y - 5, Math.round(34 * sh.stock), 2);
+    }
+  }
+}
+
 // ---------- floor power-ups ----------
 const TILE = 24;
 const tileHash = (i, j, salt = 0) => (((i * 374761393) ^ (j * 668265263) ^ (salt * 2246822519)) >>> 0) % 100000 / 100000;
@@ -1225,6 +1329,7 @@ function renderHud() {
   const w = G.weapons.map((x) => `<span class="slot${x.evolved ? ' evo' : ''}">${ICONS[x.id]}<b>${x.evolved ? '★' : x.lv}</b></span>`).join('');
   const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('');
   const html = `<div class="xpbar"><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>${T('ui.lv', { n: G.level })}</span></div>
+    ${riotOn() ? '' : '<!--'}<div class="riotbar${G.rioting ? ' on' : ''}"><div style="width:${G.riot}%"></div><span>${T(G.rioting ? 'ui.riotHudOn' : 'ui.riotHud')}</span></div>${riotOn() ? '' : '-->'}
     <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${T(G.overtime ? 'ui.overtimeHud' : G.t < BOSS_AT ? 'ui.shiftEnds' : 'ui.holdOn')}</small></div>
     <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}${G.combo >= 25 ? `<div class="combo" style="--c:${Math.min(1, G.combo / 300)}">×${Math.floor(G.combo / 5) * 5}</div>` : ''}</div></div><div class="slots">${ps}</div>${Object.keys(G.buffs).length ? `<div class="buffs">${Object.entries(G.buffs).map(([id, t]) => `<span title="${T(`powerups.${id}.desc`)}">${POWERUPS.find((p) => p.id === id).icon} ${T(`powerups.${id}.name`)} <b>${Math.ceil(t)}s</b></span>`).join('')}</div>` : ''}`;
   if (html !== hudCache) { ui.hud.innerHTML = html; hudCache = html; }
@@ -1591,6 +1696,6 @@ window.__db = {
       update(STEP);
     }
     return { t: G.t, state, level: G.level, kills: G.kills, hp: G.player.hp, enemies: G.enemies.length,
-      weapons: G.weapons.map((w) => w.id + ':' + (w.evolved ? 'E' : w.lv)), passives: { ...G.passives }, dmgTaken: G.dmgTaken, dealt: G.dmgDealt, boss: G.bossDead ? 'dead' : G.boss ? Math.round(G.boss.hp) : '-', dmgBy: G.dmgBy, nearby: nearby(G.player.x, G.player.y, 40, []).length };
+      weapons: G.weapons.map((w) => w.id + ':' + (w.evolved ? 'E' : w.lv)), passives: { ...G.passives }, dmgTaken: G.dmgTaken, dealt: G.dmgDealt, restocks: G.restocks, riots: G.riots, powerups: G.powerups, boss: G.bossDead ? 'dead' : G.boss ? Math.round(G.boss.hp) : '-', dmgBy: G.dmgBy, nearby: nearby(G.player.x, G.player.y, 40, []).length };
   },
 };
