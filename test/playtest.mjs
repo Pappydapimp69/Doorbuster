@@ -40,7 +40,7 @@ await page.screenshot({ path: join(shots, 'boss.png') });
 const chars = ['stocker', 'cashier', 'security', 'janitor'];
 const results = [];
 for (let i = 0; i < runs; i++) {
-  const r = await page.evaluate(([c, s]) => { __db.start(c, s); __db.setAutopilot(true); return __db.simulate(620); }, [chars[i % 4], 100 + i]);
+  const r = await page.evaluate(([c, s]) => { __db.save.unlockedWeapons = {}; __db.save.stats = { runs: 0, wins: 0, bestTime: 0, totalKills: 0, bossKills: 0 }; __db.start(c, s); __db.setAutopilot(true); return __db.simulate(620); }, [chars[i % 4], 100 + i]);
   results.push({ char: chars[i % 4], ...r });
   console.log(`${chars[i % 4].padEnd(9)} t=${r.t.toFixed(0).padStart(3)} ${r.state.padEnd(5)} lv=${r.level} kills=${r.kills} hp=${Math.round(r.hp)} dmg=${r.dmgTaken} boss=${r.boss} by=${JSON.stringify(Object.fromEntries(Object.entries(r.dmgBy).map(([k,v])=>[k,Math.round(v)])))}`);
 }
@@ -50,23 +50,23 @@ const summary = (rs) => `wins ${rs.filter((r) => r.t >= 600).length}/${rs.length
 const vet = [];
 for (let i = 0; i < runs; i++) {
   vet.push(await page.evaluate(([c, s]) => {
-    __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 };
+    __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 }; __db.save.unlockedWeapons = { giftCard: 1, extinguisher: 1, alarm: 1, chicken: 1 };
     __db.start(c, s); __db.setAutopilot(true);
-    const r = __db.simulate(620); __db.save.meta = {}; return r;
+    const r = __db.simulate(620); __db.save.meta = {}; __db.save.unlockedWeapons = {}; return r;
   }, [chars[i % 4], 500 + i]));
 }
 // Electronics (second map) with a maxed save, and one overtime stretch after a win.
 const elec = [];
 for (let i = 0; i < Math.max(4, runs / 2); i++) {
   elec.push(await page.evaluate(([c, s]) => {
-    __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 };
+    __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 }; __db.save.unlockedWeapons = { giftCard: 1, extinguisher: 1, alarm: 1, chicken: 1 };
     __db.start(c, s, 'electronics'); __db.setAutopilot(true);
-    const r = __db.simulate(620); __db.save.meta = {}; return r;
+    const r = __db.simulate(620); __db.save.meta = {}; __db.save.unlockedWeapons = {}; return r;
   }, [chars[i % 4], 900 + i]));
 }
 console.log('electro ' + summary(elec) + ' | levels ' + elec.map((r) => r.level).join(','));
 const ot = await page.evaluate(() => {
-  __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 };
+  __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 }; __db.save.unlockedWeapons = { giftCard: 1, extinguisher: 1, alarm: 1, chicken: 1 };
   for (let s = 1; s < 40; s++) {
     __db.start('cashier', 700 + s); __db.setAutopilot(true);
     const r = __db.simulate(620);

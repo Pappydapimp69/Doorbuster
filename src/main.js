@@ -1,6 +1,6 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES, UNLOCKS,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes, currentSong } from './audio.js';
@@ -759,6 +759,35 @@ function openBox() {
   announce(T('ui.lostFound'), true);
 }
 
+// ---------- unlocks ----------
+function weaponUnlocked(id) { return !UNLOCKS[id] || !!(save.unlockedWeapons && save.unlockedWeapons[id]); }
+
+// Career stats including the run in progress, so milestones pop the moment they're hit.
+function liveStat(stat) {
+  const st = save.stats;
+  if (!G) return st[stat] || 0;
+  if (stat === 'bestTime') return Math.max(st.bestTime || 0, G.overtime ? 600 : G.t);
+  if (stat === 'totalKills') return (st.totalKills || 0) + G.kills - (G.otKills || 0); // overtime kills only; the shift was banked at 11:00
+  if (stat === 'bestLevel') return Math.max(st.bestLevel || 0, G.level);
+  return st[stat] || 0;
+}
+
+function checkUnlocks() {
+  save.unlockedWeapons = save.unlockedWeapons || {};
+  for (const [id, u] of Object.entries(UNLOCKS)) {
+    if (save.unlockedWeapons[id] || liveStat(u.stat) < u.need) continue;
+    save.unlockedWeapons[id] = true;
+    writeSave(save);
+    toast(`${ICONS[id]} ${T('ui.newStock', { name: T(`weapons.${id}.name`) })}`);
+    sfx('coin');
+  }
+}
+
+function unlockText(id) {
+  const u = UNLOCKS[id];
+  return T(`ui.unlock.${u.stat}`, { n: u.stat === 'bestTime' ? u.need / 60 : u.need });
+}
+
 // ---------- level-up ----------
 function readyEvolutions() {
   return G.weapons.filter((w) => !w.evolved && w.lv >= MAX_LEVEL && EVOLUTIONS[w.id] && G.passives[EVOLUTIONS[w.id].needs]).map((w) => w.id);
@@ -767,7 +796,7 @@ function readyEvolutions() {
 function buildChoices() {
   const pool = [];
   for (const w of G.weapons) if (!w.evolved && w.lv < MAX_LEVEL) pool.push({ type: 'weapon', id: w.id });
-  if (G.weapons.length < MAX_WEAPONS) for (const id in WEAPONS) if (!G.weapons.find((w) => w.id === id) && !G.banished.has(id)) pool.push({ type: 'weapon', id });
+  if (G.weapons.length < MAX_WEAPONS) for (const id in WEAPONS) if (weaponUnlocked(id) && !G.weapons.find((w) => w.id === id) && !G.banished.has(id)) pool.push({ type: 'weapon', id });
   for (const id in G.passives) if (G.passives[id] < MAX_LEVEL) pool.push({ type: 'passive', id });
   if (Object.keys(G.passives).length < MAX_PASSIVES) for (const id in PASSIVES) if (!(id in G.passives) && !G.banished.has(id)) pool.push({ type: 'passive', id });
   const out = readyEvolutions().slice(0, 1).map((id) => ({ type: 'evo', id }));
@@ -793,6 +822,7 @@ function applyChoice(c) {
   if (c.type === 'evo') {
     const w = G.weapons.find((x) => x.id === c.id);
     w.evolved = true; G.evolved++;
+    save.evoSeen = { ...(save.evoSeen || {}), [c.id]: true };
     sfx('evolve');
     announce(T('ui.promoted', { name: T(`evolutions.${c.id}.name`).toUpperCase() }), true);
     achieve('EVOLVED');
@@ -904,6 +934,7 @@ function update(dt) {
   G.shake = Math.max(0, G.shake - dt * 1.5);
   audio.intensity = clamp(G.enemies.length / 250, 0, 1);
   if (G.kills >= 1000) achieve('BLACK_FRIDAY');
+  if (Math.floor(G.t) !== Math.floor(G.t - STEP)) checkUnlocks();
   if (G.t >= RUN_SECONDS && !G.overtime) { endRun(true); return; }
   if (G.overtime && G.t - G.otStart >= 300) achieve('OVERTIME');
   if (G.pendingLevels > 0 && state === 'play') openLevelUp();
@@ -1094,7 +1125,10 @@ function show(html, onBack) {
   paintFocus();
 }
 function btns() { return [...ui.screen.querySelectorAll('.btn')]; }
-function paintFocus() { btns().forEach((b, i) => b.classList.toggle('focus', i === focusIdx)); }
+function paintFocus() {
+  btns().forEach((b, i) => b.classList.toggle('focus', i === focusIdx));
+  btns()[focusIdx]?.scrollIntoView({ block: 'nearest' }); // long screens (Inventory) on gamepad
+}
 
 function menuInput() {
   const list = btns();
@@ -1129,6 +1163,7 @@ const ACTIONS = {
   overtime: () => { if (!DEMO) startOvertime(); },
   wishlist: () => (window.desktop?.openStore ? window.desktop.openStore() : window.open('https://store.steampowered.com/', '_blank')),
   shop: () => showShop(),
+  inventory: () => showInventory(),
   staff: () => showStaff(),
   settings: () => showSettings(state === 'paused' ? showPause : showMenu),
   menu: () => { state = 'menu'; G = null; showMenu(); startMusic('menu'); },
@@ -1178,11 +1213,31 @@ function showMenu() {
       <button class="btn" data-act="start">${T('ui.clockIn')}</button>
       <button class="btn" data-act="staff">${T('ui.staffRoom')}</button>
       <button class="btn" data-act="shop">${T('ui.breakRoom')} <small>💰 ${save.tips}</small></button>
+      <button class="btn" data-act="inventory">${T('ui.inventory')}</button>
       <button class="btn" data-act="settings">${T('ui.settings')}</button>
       ${DEMO ? `<button class="btn" data-act="wishlist">⭐ ${T('ui.wishlist')}</button>` : ''}
       ${window.desktop ? `<button class="btn" data-act="quit">${T('ui.quit')}</button>` : ''}
     </div>
     <p class="hint">${T('ui.hint')}</p>`);
+}
+
+function showInventory() {
+  const st = save.stats, mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const rec = [['recBest', mmss(st.bestTime || 0)], ['recWins', st.wins || 0], ['recKills', st.totalKills || 0], ['recBoss', st.bossKills || 0],
+    ['recOvertime', mmss(st.bestOvertime || 0)], ['recLevel', st.bestLevel || 0]];
+  const weapons = Object.keys(WEAPONS).map((id) => weaponUnlocked(id)
+    ? `<div class="inv"><span class="ic">${ICONS[id]}</span><b>${T(`weapons.${id}.name`)}</b><span>${T(`weapons.${id}.desc`)}</span></div>`
+    : `<div class="inv locked"><span class="ic">🔒</span><b>${T('ui.lockedH')}</b><span>${unlockText(id)}</span></div>`).join('');
+  const passives = Object.keys(PASSIVES).map((id) => `<div class="inv"><span class="ic">${ICONS[id]}</span><b>${T(`passives.${id}.name`)}</b><span>${T(`passives.${id}.desc`)}</span></div>`).join('');
+  const evos = Object.entries(EVOLUTIONS).map(([id, e]) => (save.evoSeen || {})[id]
+    ? `<div class="inv"><span class="ic">⭐</span><b>${T(`evolutions.${id}.name`)}</b><span>${ICONS[id]} ${T(`weapons.${id}.name`)} ★ + ${ICONS[e.needs]} ${T(`passives.${e.needs}.name`)}</span></div>`
+    : `<div class="inv locked"><span class="ic">⭐</span><b>???</b><span>${T('ui.unknownEvo')}</span></div>`).join('');
+  show(`<h2>${T('ui.inventory')}</h2>
+    <div class="records">${rec.map(([k, v]) => `<div><b>${v}</b>${T('ui.' + k)}</div>`).join('')}</div>
+    <h3>${T('ui.weaponsH')}</h3><div class="invgrid">${weapons}</div>
+    <h3>${T('ui.passivesH')}</h3><div class="invgrid">${passives}</div>
+    <h3>${T('ui.evolutionsH')}</h3><div class="invgrid">${evos}</div>
+    <button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
 }
 
 function showShop(focusId) {
@@ -1274,7 +1329,9 @@ function endRun(win) {
     bonus = Math.round((Math.floor(G.kills / 25) + Math.floor(survived / 60) * 5 + (win ? 50 : 0)) * G.stats.greed);
     save.stats.runs++;
     save.stats.bestTime = Math.max(save.stats.bestTime, survived);
+    save.stats.bestLevel = Math.max(save.stats.bestLevel || 0, G.level);
   }
+  checkUnlocks();
   const total = G.tipsRun + bonus;
   save.tips += total;
   save.stats.totalKills += G.kills - (G.otKills || 0);

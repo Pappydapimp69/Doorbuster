@@ -23,6 +23,10 @@ export default {
     bossHere: '{boss} ЗДЕСЬ', circleBack: '«Давайте вернёмся к этому позже».', secondWind: 'ВТОРОЕ ДЫХАНИЕ. За работу.',
     bossGone: '{boss} покинул здание.', lostFound: 'Коробка находок: бесплатное улучшение.', promoted: 'ПОВЫШЕНИЕ: {name}',
     doorsOpen: 'Двери открыты. Удачи.', overtimeStart: 'ПЕРЕРАБОТКА. Двери не закрываются никогда.', demo: 'ДЕМО',
+    inventory: 'Склад', records: 'Рекорды', weaponsH: 'Оружие', passivesH: 'Пассивки', evolutionsH: 'Эволюции',
+    newStock: 'Новинка на складе: {name}', lockedH: 'Закрыто', unknownEvo: '??? — эволюционируй, чтобы узнать',
+    recBest: 'Самая долгая смена', recWins: 'Пережито смен', recKills: 'Обслужено покупателей', recBoss: 'Выпровожено менеджеров', recOvertime: 'Самая долгая переработка', recLevel: 'Макс. уровень',
+    unlock: { bestTime: 'Продержись {n} мин.', totalKills: 'Обслужи {n} покупателей всего', bestLevel: 'Достигни {n} уровня', bossKills: 'Победи менеджера' },
     clock24: true,
   },
   weapons: {

@@ -23,6 +23,10 @@ export default {
     bossHere: '{boss}来了', circleBack: '"这个我们回头再对一下。"', secondWind: '缓过来了。继续干活。',
     bossGone: '{boss}已经离开了大楼。', lostFound: '失物招领箱：免费升级。', promoted: '晋升：{name}',
     doorsOpen: '开门了。祝你好运。', overtimeStart: '加班。这扇门永远不会关。', demo: '试玩版',
+    inventory: '库存', records: '记录', weaponsH: '武器', passivesH: '被动道具', evolutionsH: '进化',
+    newStock: '新货上架：{name}', lockedH: '未解锁', unknownEvo: '？？？——进化后揭晓',
+    recBest: '最长班次', recWins: '坚持下来的班次', recKills: '处理过的顾客', recBoss: '打发走的经理', recOvertime: '最长加班', recLevel: '最高等级',
+    unlock: { bestTime: '坚持 {n} 分钟', totalKills: '累计处理 {n} 名顾客', bestLevel: '达到 {n} 级', bossKills: '击败一位经理' },
     clock24: true,
   },
   weapons: {

@@ -143,6 +143,14 @@ export const WEAPONS = {
   },
 };
 
+// Weapons that start locked, and the milestone that puts them on the shelves.
+export const UNLOCKS = {
+  giftCard: { stat: 'bestTime', need: 300 },
+  extinguisher: { stat: 'totalKills', need: 2000 },
+  alarm: { stat: 'bestLevel', need: 25 },
+  chicken: { stat: 'bossKills', need: 1 },
+};
+
 export const PASSIVES = {
   shoes: { name: 'Comfy Shoes', icon: 'shoe', desc: '+10% move speed.', stat: 'speed', per: 0.10 },
   energy: { name: 'Energy Drink', icon: 'can', desc: '-8% weapon cooldowns.', stat: 'cooldown', per: 0.08 },

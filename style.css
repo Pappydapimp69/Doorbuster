@@ -67,3 +67,14 @@ h2 { margin: 0; font-size: 36px; letter-spacing: 2px; text-shadow: 0 4px 0 #000;
 @media (max-width: 600px) { .stats { grid-template-columns: repeat(2, auto); } .clock { font-size: 20px; } }
 .btn[disabled] { opacity: .45; cursor: default; }
 .demo { display: inline-block; margin-top: 8px !important; padding: 2px 10px; background: var(--yellow); color: #15141c !important; font-weight: 900; border-radius: 4px; letter-spacing: 2px; }
+h3 { margin: 6px 0 0; font-size: 16px; color: var(--yellow); letter-spacing: 1px; text-transform: uppercase; }
+.records { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 18px; text-align: center; color: var(--dim); font-size: 12px; width: min(560px, 94vw); }
+.records b { display: block; font-size: 20px; color: var(--ink); }
+.invgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; width: min(820px, 94vw); }
+.inv { display: grid; grid-template-columns: 30px 1fr; column-gap: 8px; background: #24222f; border: 2px solid var(--edge); border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+.inv .ic { grid-row: span 2; font-size: 22px; align-self: center; }
+.inv span:not(.ic) { color: var(--dim); font-size: 12px; }
+.inv.locked { opacity: .6; border-style: dashed; }
+#screen { justify-content: flex-start; padding-top: max(16px, 4vh); }
+#screen > :first-child { margin-top: auto; }
+#screen > :last-child { margin-bottom: auto; }

@@ -23,6 +23,10 @@ export default {
     bossHere: 'O {boss} CHEGOU', circleBack: '"Vamos retomar isso depois."', secondWind: 'SEGUNDO FÔLEGO. Volta pro trabalho.',
     bossGone: 'O {boss} deixou o prédio.', lostFound: 'Caixa de achados e perdidos: melhoria grátis.', promoted: 'PROMOVIDO: {name}',
     doorsOpen: 'Portas abertas. Boa sorte aí.', overtimeStart: 'HORA EXTRA. As portas nunca fecham.', demo: 'DEMO',
+    inventory: 'Estoque', records: 'Recordes', weaponsH: 'Armas', passivesH: 'Passivos', evolutionsH: 'Evoluções',
+    newStock: 'Chegou no estoque: {name}', lockedH: 'Bloqueado', unknownEvo: '??? — evolua para descobrir',
+    recBest: 'Turno mais longo', recWins: 'Turnos sobrevividos', recKills: 'Clientes atendidos', recBoss: 'Gerentes dispensados', recOvertime: 'Hora extra mais longa', recLevel: 'Nível mais alto',
+    unlock: { bestTime: 'Aguente {n} minutos', totalKills: 'Atenda {n} clientes no total', bestLevel: 'Chegue ao nível {n}', bossKills: 'Derrote um gerente' },
     clock24: true,
   },
   weapons: {

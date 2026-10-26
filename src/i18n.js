@@ -32,6 +32,10 @@ const UI = {
   bossHere: 'THE {boss} IS HERE', circleBack: '"Let\'s circle back on that."', secondWind: 'SECOND WIND. Back to work.',
   bossGone: 'The {boss} has left the building.', lostFound: 'Lost & Found box: free upgrade.', promoted: 'PROMOTED: {name}',
   doorsOpen: 'Doors open. Good luck out there.', overtimeStart: 'OVERTIME. The doors never close.', demo: 'DEMO',
+  inventory: 'Inventory', records: 'Records', weaponsH: 'Weapons', passivesH: 'Passives', evolutionsH: 'Evolutions',
+  newStock: 'New in stock: {name}', lockedH: 'Locked', unknownEvo: '??? — evolve it to find out',
+  recBest: 'Longest shift', recWins: 'Shifts survived', recKills: 'Shoppers handled', recBoss: 'Managers dismissed', recOvertime: 'Longest overtime', recLevel: 'Highest level',
+  unlock: { bestTime: 'Survive {n} minutes', totalKills: 'Handle {n} shoppers in total', bestLevel: 'Reach level {n}', bossKills: 'Defeat a manager' },
   clock24: false,
 };
 

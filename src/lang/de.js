@@ -23,6 +23,10 @@ export default {
     bossHere: 'DER {boss} IST DA', circleBack: '„Lassen Sie uns das später nochmal aufgreifen.“', secondWind: 'ZWEITER ATEM. Zurück an die Arbeit.',
     bossGone: 'Der {boss} hat das Gebäude verlassen.', lostFound: 'Fundkiste: Gratis-Upgrade.', promoted: 'BEFÖRDERT: {name}',
     doorsOpen: 'Türen auf. Viel Glück da draußen.', overtimeStart: 'ÜBERSTUNDEN. Die Türen schließen nie.', demo: 'DEMO',
+    inventory: 'Lager', records: 'Rekorde', weaponsH: 'Waffen', passivesH: 'Passive', evolutionsH: 'Evolutionen',
+    newStock: 'Neu im Lager: {name}', lockedH: 'Gesperrt', unknownEvo: '??? — entwickle sie, um es herauszufinden',
+    recBest: 'Längste Schicht', recWins: 'Überstandene Schichten', recKills: 'Bediente Kunden', recBoss: 'Abgewimmelte Manager', recOvertime: 'Längste Überstunden', recLevel: 'Höchste Stufe',
+    unlock: { bestTime: 'Überstehe {n} Minuten', totalKills: 'Bediene insgesamt {n} Kunden', bestLevel: 'Erreiche Stufe {n}', bossKills: 'Besiege einen Manager' },
     clock24: true,
   },
   weapons: {
