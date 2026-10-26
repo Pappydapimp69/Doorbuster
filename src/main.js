@@ -1383,6 +1383,8 @@ function btns() { return [...ui.screen.querySelectorAll('.btn')]; }
 function paintFocus() {
   btns().forEach((b, i) => b.classList.toggle('focus', i === focusIdx));
   btns()[focusIdx]?.scrollIntoView({ block: 'nearest' }); // long screens (Inventory) on gamepad
+  const info = $('#perkinfo'), f = btns()[focusIdx];
+  if (info) info.innerHTML = (f && f.dataset.info) || '';
 }
 
 function menuInput() {
@@ -1419,6 +1421,7 @@ const ACTIONS = {
   wishlist: () => (window.desktop?.openStore ? window.desktop.openStore() : window.open('https://store.steampowered.com/', '_blank')),
   shop: () => showShop(),
   inventory: () => showInventory(),
+  shoptab: (t) => showShop(null, t),
   staff: () => showStaff(),
   settings: () => showSettings(state === 'paused' ? showPause : showMenu),
   menu: () => { state = 'menu'; G = null; showMenu(); startMusic('menu'); },
@@ -1512,21 +1515,39 @@ function staffStat(stat) {
 }
 function staffEarned(id) { const e = CHARACTERS[id].earn; return !e || staffStat(e.stat) >= e.need; }
 
-function showShop(focusId) {
-  show(`<h2>${T('ui.breakRoom')}</h2><p class="sub">${T('ui.shopSub')} 💰 ${save.tips}</p>
-    <div class="grid" data-cols="2">${Object.entries(META).map(([id, m]) => {
+const PERK_ICONS = { maxHp: '❤️', speed: '👟', greed: '💰', xp: '🧾', cooldown: '⏱️', rerolls: '🔁', revives: '💖', dmg: '💪', armor: '🦺',
+  regen: '💊', restock: '📦', riotFill: '🚧', riotTips: '💵', tagLuck: '🏷️', buffDur: '⌛', heal: '🩹', coin: '🪙', magnet: '🧲',
+  area: '💧', eliteDmg: '🎖️', invuln: '😴' };
+
+// Break Room: two tabs of compact tiles; the focused tile's details show in
+// one panel instead of every description stacked in a long list.
+function showShop(focusId, tab = showShop.tab || 'buy') {
+  showShop.tab = tab;
+  const earnedN = Object.keys(EARNED).filter(perkEarned).length;
+  const tiles = tab === 'buy'
+    ? Object.entries(META).map(([id, m]) => {
       const lv = metaLv(id), maxed = lv >= m.max, cost = maxed ? 0 : m.cost[lv];
-      return `<button class="btn card" data-act="buy" data-arg="${id}" ${!maxed && save.tips < cost ? 'data-poor' : ''}>
-        <b>${T(`meta.${id}.name`)}</b><span>${T(`meta.${id}.desc`)}</span><em>${'●'.repeat(lv)}${'○'.repeat(m.max - lv)}</em>
-        <i>${maxed ? T('ui.maxed') : '💰 ' + cost}</i></button>`;
-    }).join('')}</div>
-    <h3>Earned by playing · ${Object.keys(EARNED).filter(perkEarned).length}/${Object.keys(EARNED).length}</h3>
-    <div class="invgrid">${Object.entries(EARNED).map(([id, e]) => perkEarned(id)
-      ? `<div class="inv"><span class="ic">✅</span><b>${e.name}</b><span>${e.desc}</span></div>`
-      : `<div class="inv locked"><span class="ic">🔒</span><b>${e.name}</b><span>${e.cond.text} (${Math.min(staffStat(e.cond.stat), e.cond.need)}/${e.cond.need}) → ${e.desc}</span></div>`).join('')}</div>
+      const info = `<b>${PERK_ICONS[m.stat] || '⭐'} ${T(`meta.${id}.name`)}</b><span>${T(`meta.${id}.desc`)} per level · level ${lv}/${m.max}</span><i>${maxed ? T('ui.maxed') : (save.tips >= cost ? 'Buy for 💰 ' : 'Needs 💰 ') + cost}</i>`;
+      return `<button class="btn ptile${maxed ? ' maxed' : ''}" data-act="buy" data-arg="${id}" ${!maxed && save.tips < cost ? 'data-poor' : ''} data-info="${escapeAttr(info)}">
+        <span class="pic">${PERK_ICONS[m.stat] || '⭐'}</span><span class="pname">${T(`meta.${id}.name`)}</span>
+        <span class="pips">${'●'.repeat(lv)}${'○'.repeat(m.max - lv)}</span><span class="pcost">${maxed ? '✓' : '💰' + cost}</span></button>`;
+    })
+    : Object.entries(EARNED).map(([id, e]) => {
+      const got = perkEarned(id), have = Math.min(staffStat(e.cond.stat), e.cond.need);
+      const info = `<b>${PERK_ICONS[e.stat] || '⭐'} ${e.name}</b><span>${e.desc}</span><i>${got ? '✅ Earned' : `🔒 ${e.cond.text} · ${have}/${e.cond.need}`}</i>`;
+      return `<button class="btn ptile${got ? ' got' : ' locked'}" data-arg="${id}" data-info="${escapeAttr(info)}">
+        <span class="pic">${got ? PERK_ICONS[e.stat] || '⭐' : '🔒'}</span><span class="pname">${e.name}</span>
+        <span class="pbar"><span style="width:${100 * have / e.cond.need}%"></span></span></button>`;
+    });
+  show(`<h2>${T('ui.breakRoom')} <small class="tips">💰 ${save.tips}</small></h2>
+    <div class="tabs"><button class="btn sm${tab === 'buy' ? ' on' : ''}" data-act="shoptab" data-arg="buy">Buy with tips</button>
+    <button class="btn sm${tab === 'earned' ? ' on' : ''}" data-act="shoptab" data-arg="earned">Earned by playing ${earnedN}/${Object.keys(EARNED).length}</button></div>
+    <div class="perkgrid" data-cols="5">${tiles.join('')}</div>
+    <div id="perkinfo" class="perkinfo"></div>
     <button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
-  refocus(focusId && `[data-arg="${focusId}"]`);
+  refocus(focusId ? `[data-arg="${focusId}"]` : '.ptile');
 }
+const escapeAttr = (h) => h.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
 function showStaff(focusId) {
   show(`<h2>${T('ui.staffRoom')}</h2><p class="sub">${T('ui.staffSub')} 💰 ${save.tips}</p>

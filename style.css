@@ -92,3 +92,24 @@ h3 { margin: 6px 0 0; font-size: 16px; color: var(--yellow); letter-spacing: 1px
 .riotbar span { position: absolute; left: 6px; top: -4px; font-size: 11px; }
 .riotbar.on { animation: riotflash .4s steps(2) infinite; }
 @keyframes riotflash { to { border-color: #ff3b3b; } }
+
+.tabs { display: flex; gap: 6px; }
+.tabs .btn.on { border-color: var(--yellow); background: #322f42; }
+h2 .tips { font-size: 18px; color: var(--yellow); margin-left: 8px; }
+.perkgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; width: min(780px, 96vw); }
+.ptile { display: grid; grid-template-rows: auto auto auto; justify-items: center; gap: 1px; padding: 6px 4px; font-size: 11px; min-height: 74px; }
+.ptile .pic { font-size: 20px; line-height: 1.1; }
+.ptile .pname { font-weight: 700; line-height: 1.1; text-align: center; }
+.ptile .pips { color: var(--yellow); letter-spacing: 1px; font-size: 9px; }
+.ptile .pcost { color: var(--yellow); font-size: 11px; }
+.ptile[data-poor] .pcost { color: #8a6a6a; }
+.ptile.maxed { border-color: #4cd36a; }
+.ptile.got { border-color: #4cd36a; }
+.ptile.locked { opacity: .55; border-style: dashed; }
+.pbar { width: 80%; height: 4px; background: #000; border-radius: 2px; overflow: hidden; margin-top: 3px; }
+.pbar span { display: block; height: 100%; background: var(--yellow); }
+.perkinfo { width: min(780px, 96vw); min-height: 54px; background: #24222f; border: 2px solid var(--edge); border-radius: 8px; padding: 8px 12px; display: grid; gap: 2px; }
+.perkinfo b { font-size: 16px; }
+.perkinfo span { color: var(--dim); font-size: 13px; }
+.perkinfo i { font-style: normal; color: var(--yellow); font-size: 13px; }
+@media (max-width: 600px) { .perkgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
