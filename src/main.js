@@ -988,7 +988,8 @@ function render() {
   people.sort((a, b) => a.y - b.y);
   for (const e of people) {
     if (e === p) { drawPlayer(); continue; }
-    const arr = e.flash > 0 ? SPR[e.def.sprite + '_flash'] : SPR[e.def.sprite];
+    const step = Math.floor(e.t * 7) % 2 ? '_b' : '';
+    const arr = e.flash > 0 ? SPR[e.def.sprite + '_flash'] : SPR[e.def.sprite + step];
     const s = arr[e.var % arr.length];
     const bob = Math.abs(Math.sin(e.t * 9)) * 1.2;
     cx.save();
@@ -1081,7 +1082,8 @@ function render() {
 
 function drawPlayer() {
   const p = G.player;
-  const s = (p.inv > 0 && Math.floor(G.t * 20) % 2) ? SPR['worker_' + G.char + '_flash'] : SPR['worker_' + G.char];
+  const step = p.moving && Math.floor(p.anim / 2.2) % 2 ? '_b' : '';
+  const s = (p.inv > 0 && Math.floor(G.t * 20) % 2) ? SPR['worker_' + G.char + '_flash'] : SPR['worker_' + G.char + step];
   const bob = p.moving ? Math.abs(Math.sin(p.anim)) * 1.5 : 0;
   cx.save();
   cx.translate(Math.round(p.x), Math.round(p.y - bob));

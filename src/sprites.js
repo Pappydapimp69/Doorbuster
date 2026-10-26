@@ -169,6 +169,22 @@ const MAPS = {
   chicken: ['..oo..', '.oyyo.', 'oyyyyo', 'oyyyyo', '.oooo.', 'w....w'],
 };
 
+// Second walk frame: the legs (bottom rows) step apart, left half out to the
+// left and right half out to the right.
+function stride(map, rows = 3) {
+  const w = map[0].length, mid = w / 2;
+  return map.map((row, j) => {
+    if (j < map.length - rows + 1) return row;
+    const out = Array(w).fill('.');
+    for (let i = 0; i < w; i++) {
+      if (row[i] === '.') continue;
+      const ni = i < mid ? i - 1 : i + 1;
+      if (ni >= 0 && ni < w) out[ni] = row[i];
+    }
+    return out.join('');
+  });
+}
+
 const SHIRTS = ['#4a90d9', '#9b59b6', '#e67e22', '#27ae60', '#c0392b', '#16a085', '#7f8c8d', '#d35400'];
 const HAIRS = ['#5a3a24', '#1b1a24', '#c9a35a', '#8b4a2b', '#999999'];
 
@@ -203,15 +219,20 @@ export const SPR = {};
 export function buildSprites(characters) {
   for (const [id, ch] of Object.entries(characters)) {
     SPR['worker_' + id] = render(MAPS.worker, { v: ch.vest });
+    SPR['worker_' + id + '_b'] = render(stride(MAPS.worker), { v: ch.vest });
   }
   for (const kind of ['shopper', 'walker', 'clipper', 'cartPusher', 'scalper', 'camper']) {
     SPR[kind] = [];
+    SPR[kind + '_b'] = [];
     for (let i = 0; i < SHIRTS.length; i++) {
       SPR[kind].push(render(MAPS[kind], { c: SHIRTS[i], h: HAIRS[i % HAIRS.length] }));
+      SPR[kind + '_b'].push(render(kind === 'camper' ? MAPS[kind] : stride(MAPS[kind]), { c: SHIRTS[i], h: HAIRS[i % HAIRS.length] }));
     }
   }
   SPR.requester = [render(MAPS.requester, {})];
+  SPR.requester_b = [render(stride(MAPS.requester), {})];
   SPR.boss = [render(MAPS.boss, {}, 2), render(MAPS.boss, { e: '#3b1f4a', G: '#dddddd' }, 2)];
+  SPR.boss_b = [render(stride(MAPS.boss), {}, 2), render(stride(MAPS.boss), { e: '#3b1f4a', G: '#dddddd' }, 2)];
   for (const k of ['cart', 'chicken', 'receipt1', 'receipt2', 'receipt3', 'coin', 'heart', 'box']) SPR[k] = render(MAPS[k], {});
   for (const k of Object.keys(SPR)) {
     if (Array.isArray(SPR[k])) SPR[k + '_flash'] = SPR[k].map(flash);
