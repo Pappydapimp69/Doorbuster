@@ -56,15 +56,17 @@ for (let i = 0; i < runs; i++) {
   }, [chars[i % 4], 500 + i]));
 }
 // Electronics (second map) with a maxed save, and one overtime stretch after a win.
-const elec = [];
-for (let i = 0; i < Math.max(4, runs / 2); i++) {
-  elec.push(await page.evaluate(([c, s]) => {
-    __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 }; __db.save.unlockedWeapons = { giftCard: 1, extinguisher: 1, alarm: 1, chicken: 1 };
-    __db.start(c, s, 'electronics'); __db.setAutopilot(true);
-    const r = __db.simulate(620); __db.save.meta = {}; __db.save.unlockedWeapons = {}; return r;
-  }, [chars[i % 4], 900 + i]));
+for (const map of ['electronics', 'toys']) {
+  const rs = [];
+  for (let i = 0; i < Math.max(4, runs / 2); i++) {
+    rs.push(await page.evaluate(([c, s, m]) => {
+      __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 }; __db.save.unlockedWeapons = { giftCard: 1, extinguisher: 1, alarm: 1, chicken: 1 };
+      __db.start(c, s, m); __db.setAutopilot(true);
+      const r = __db.simulate(620); __db.save.meta = {}; __db.save.unlockedWeapons = {}; return r;
+    }, [chars[i % 4], 900 + i, map]));
+  }
+  console.log(map.slice(0, 7).padEnd(7) + ' ' + summary(rs) + ' | levels ' + rs.map((r) => r.level).join(','));
 }
-console.log('electro ' + summary(elec) + ' | levels ' + elec.map((r) => r.level).join(','));
 const ot = await page.evaluate(() => {
   __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 }; __db.save.unlockedWeapons = { giftCard: 1, extinguisher: 1, alarm: 1, chicken: 1 };
   for (let s = 1; s < 40; s++) {

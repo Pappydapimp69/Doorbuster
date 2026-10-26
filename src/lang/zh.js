@@ -29,6 +29,7 @@ export default {
     unlock: { bestTime: '坚持 {n} 分钟', totalKills: '累计处理 {n} 名顾客', bestLevel: '达到 {n} 级', bossKills: '击败一位经理' },
     tutorial: '用 WASD、方向键或摇杆移动。武器会自动攻击。捡起收据来升级。',
     fullscreen: '切换全屏',
+    surviveIn: '在{map}坚持一个班',
     clock24: true,
   },
   weapons: {
@@ -63,6 +64,7 @@ export default {
   maps: {
     floor: { name: '主卖场', desc: '食品、家居，还有400个凌晨3点起床来抢烤面包机的人。', boss: '区域经理' },
     electronics: { name: '电器区', desc: '电视、游戏机，还有在停车场排队过夜的人。完整坚持一个班后解锁。', boss: '大区经理' },
+    toys: { name: '玩具区', desc: '每个家长都害怕的通道。在电器区完整坚持一个班后解锁。', boss: '店老板' },
   },
   characters: {
     stocker: { name: '理货员', desc: '初始武器为标价枪。稳定的全能型。' },
@@ -80,6 +82,7 @@ export default {
     secondWind: { name: '回光返照', desc: '每局复活一次' },
   },
   achievements: {
+    TOYS: '玩具总动员——在玩具区坚持一个班',
     FIRST_SHIFT: '打卡下班——完整坚持一个班',
     BOSS_DOWN: '升级处理——击败区域经理',
     BLACK_FRIDAY: '黑色星期五——单局击倒1000名顾客',

@@ -29,6 +29,7 @@ export default {
     unlock: { bestTime: 'Überstehe {n} Minuten', totalKills: 'Bediene insgesamt {n} Kunden', bestLevel: 'Erreiche Stufe {n}', bossKills: 'Besiege einen Manager' },
     tutorial: 'Bewege dich mit WASD, Pfeilen oder Stick. Deine Waffen feuern von selbst. Sammle Kassenbons zum Aufsteigen.',
     fullscreen: 'Vollbild umschalten',
+    surviveIn: 'Überstehe eine Schicht: {map}',
     clock24: true,
   },
   weapons: {
@@ -63,6 +64,7 @@ export default {
   maps: {
     floor: { name: 'Verkaufsfläche', desc: 'Lebensmittel, Haushalt und 400 Leute, die um 3 Uhr für einen Toaster aufgestanden sind.', boss: 'Regionalleiter' },
     electronics: { name: 'Elektronik', desc: 'Fernseher, Konsolen und die Leute, die dafür auf dem Parkplatz gezeltet haben. Freigeschaltet nach deiner ersten ganzen Schicht.', boss: 'Bezirksleiter' },
+    toys: { name: 'Spielwaren', desc: 'Der Gang, den alle Eltern fürchten. Freigeschaltet nach einer ganzen Schicht in der Elektronik.', boss: 'Ladenbesitzer' },
   },
   characters: {
     stocker: { name: 'Lagerist', desc: 'Startet mit dem Preisauszeichner. Solider Allrounder.' },
@@ -80,6 +82,7 @@ export default {
     secondWind: { name: 'Zweiter Atem', desc: 'Einmal pro Runde wiederbeleben' },
   },
   achievements: {
+    TOYS: 'Toy Story — überstehe eine Schicht in den Spielwaren',
     FIRST_SHIFT: 'Ausgestempelt — überstehe eine ganze Schicht',
     BOSS_DOWN: 'Eskaliert — besiege den Regionalleiter',
     BLACK_FRIDAY: 'Black Friday — 1.000 Kunden in einer Runde',

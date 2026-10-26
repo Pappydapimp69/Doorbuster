@@ -38,6 +38,7 @@ const UI = {
   unlock: { bestTime: 'Survive {n} minutes', totalKills: 'Handle {n} shoppers in total', bestLevel: 'Reach level {n}', bossKills: 'Defeat a manager' },
   tutorial: 'Move with WASD, arrows or a stick. Your weapons fire on their own. Grab receipts to level up.',
   fullscreen: 'Toggle fullscreen',
+  surviveIn: 'Survive a shift in {map}',
   clock24: false,
 };
 

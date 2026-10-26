@@ -29,6 +29,7 @@ export default {
     unlock: { bestTime: 'Aguanta {n} minutos', totalKills: 'Atiende {n} clientes en total', bestLevel: 'Llega al nivel {n}', bossKills: 'Derrota a un gerente' },
     tutorial: 'Muévete con WASD, flechas o stick. Tus armas disparan solas. Recoge tickets para subir de nivel.',
     fullscreen: 'Pantalla completa',
+    surviveIn: 'Aguanta un turno en {map}',
     clock24: true,
   },
   weapons: {
@@ -63,6 +64,7 @@ export default {
   maps: {
     floor: { name: 'Planta principal', desc: 'Comida, hogar y 400 personas que se levantaron a las 3 AM por una tostadora.', boss: 'Gerente regional' },
     electronics: { name: 'Electrónica', desc: 'Teles, consolas y la gente que acampó en el aparcamiento por ellas. Se desbloquea tras tu primer turno completo.', boss: 'Gerente de zona' },
+    toys: { name: 'Juguetes', desc: 'El pasillo que todo padre teme. Se desbloquea tras un turno completo en Electrónica.', boss: 'Dueño de la tienda' },
   },
   characters: {
     stocker: { name: 'Reponedor', desc: 'Empieza con la Etiquetadora. Equilibrado.' },
@@ -80,6 +82,7 @@ export default {
     secondWind: { name: 'Segundo aire', desc: 'Revive una vez por partida' },
   },
   achievements: {
+    TOYS: 'Toy Story — aguanta un turno en Juguetes',
     FIRST_SHIFT: 'Fichado — aguanta un turno completo',
     BOSS_DOWN: 'Escalado — derrota al gerente regional',
     BLACK_FRIDAY: 'Black Friday — 1000 clientes en una partida',

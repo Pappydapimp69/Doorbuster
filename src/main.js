@@ -275,7 +275,7 @@ function spawnBoss(mult) {
   sfx('boss');
   const b = spawnEnemy('boss', rand(0, Math.PI * 2), 220);
   b.hp = b.maxHp = ENEMIES.boss.hp * G.stage.bossHp * mult;
-  b.var = G.map === 'electronics' ? 1 : 0;
+  b.var = Object.keys(STAGES).indexOf(G.map);
   G.boss = b; G.bossDead = false;
   startMusic('boss');
   G.shake = Math.max(G.shake, 0.8);
@@ -1370,7 +1370,9 @@ function endRun(win) {
   if (win) {
     save.stats.wins++;
     achieve('FIRST_SHIFT');
+    save.stats.mapWins = { ...(save.stats.mapWins || {}), [G.map]: true };
     if (G.map === 'electronics') achieve('ELECTRONICS');
+    if (G.map === 'toys') achieve('TOYS');
     if (G.dmgTaken < 100) achieve('UNTOUCHABLE');
   }
   writeSave(save);
@@ -1396,13 +1398,18 @@ function startOvertime() {
   announce(T('ui.overtimeStart'), true);
 }
 
-function mapUnlocked(id) { return !(DEMO && id !== 'floor') && (save.stats.wins || 0) >= (STAGES[id].unlockWins || 0); }
+function mapUnlocked(id) {
+  const m = STAGES[id];
+  if (DEMO && id !== 'floor') return false;
+  if (m.unlockMap) return !!(save.stats.mapWins || {})[m.unlockMap];
+  return (save.stats.wins || 0) >= (m.unlockWins || 0);
+}
 
 function showMaps() {
   show(`<h2>${T('ui.chooseDept')}</h2><div class="grid" data-cols="2">${Object.entries(STAGES).map(([id, m]) => {
     const open = mapUnlocked(id);
     return `<button class="btn card${(save.map || 'floor') === id ? ' sel' : ''}" data-act="map" data-arg="${id}" ${open ? '' : 'disabled'}>
-      <b>${T(`maps.${id}.name`)}</b><span>${T(`maps.${id}.desc`)}</span><i>${open ? T('ui.clockInMap') : '🔒 ' + T(DEMO && id !== 'floor' ? 'ui.fullGame' : 'ui.surviveShift')}</i></button>`;
+      <b>${T(`maps.${id}.name`)}</b><span>${T(`maps.${id}.desc`)}</span><i>${open ? T('ui.clockInMap') : '🔒 ' + T(DEMO && id !== 'floor' ? 'ui.fullGame' : m.unlockMap ? 'ui.surviveIn' : 'ui.surviveShift', { map: T(`maps.${m.unlockMap}.name`) })}</i></button>`;
   }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
 }
 

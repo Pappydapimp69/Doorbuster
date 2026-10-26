@@ -152,6 +152,34 @@ const MAPS = {
     'oooocccccccoooo.',
     'ggggggggggggggg.',
   ],
+  kid: [
+    '..hhhh..',
+    '.hssssh.',
+    '.skssks.',
+    '.ssssss.',
+    '..cccc..',
+    '.sccccs.',
+    '..cccc..',
+    '..b..b..',
+    '..b..b..',
+    '..w..w..',
+  ],
+  hoarder: [
+    '..oooooooo..',
+    '..oyyoopoo..',
+    '..oooooooo..',
+    '.Bpppp.BBBB.',
+    '.BBBB..pppp.',
+    '...hhhh.....',
+    '...skssk....',
+    '...ssssss...',
+    '..cccccccc..',
+    '.sccccccccs.',
+    '..cccccccc..',
+    '...bbbbbb...',
+    '...bb..bb...',
+    '...kk..kk...',
+  ],
   cart: [
     'k.........',
     'kgggggggg.',
@@ -221,7 +249,7 @@ export function buildSprites(characters) {
     SPR['worker_' + id] = render(MAPS.worker, { v: ch.vest });
     SPR['worker_' + id + '_b'] = render(stride(MAPS.worker), { v: ch.vest });
   }
-  for (const kind of ['shopper', 'walker', 'clipper', 'cartPusher', 'scalper', 'camper']) {
+  for (const kind of ['shopper', 'walker', 'clipper', 'cartPusher', 'scalper', 'camper', 'kid', 'hoarder']) {
     SPR[kind] = [];
     SPR[kind + '_b'] = [];
     for (let i = 0; i < SHIRTS.length; i++) {
@@ -231,8 +259,9 @@ export function buildSprites(characters) {
   }
   SPR.requester = [render(MAPS.requester, {})];
   SPR.requester_b = [render(stride(MAPS.requester), {})];
-  SPR.boss = [render(MAPS.boss, {}, 2), render(MAPS.boss, { e: '#3b1f4a', G: '#dddddd' }, 2)];
-  SPR.boss_b = [render(stride(MAPS.boss), {}, 2), render(stride(MAPS.boss), { e: '#3b1f4a', G: '#dddddd' }, 2)];
+  const BOSS_PALS = [{}, { e: '#3b1f4a', G: '#dddddd' }, { e: '#5a4a1a', G: '#f3f1ea', R: '#2a7a3a' }];
+  SPR.boss = BOSS_PALS.map((pal) => render(MAPS.boss, pal, 2));
+  SPR.boss_b = BOSS_PALS.map((pal) => render(stride(MAPS.boss), pal, 2));
   for (const k of ['cart', 'chicken', 'receipt1', 'receipt2', 'receipt3', 'coin', 'heart', 'box']) SPR[k] = render(MAPS[k], {});
   for (const k of Object.keys(SPR)) {
     if (Array.isArray(SPR[k])) SPR[k + '_flash'] = SPR[k].map(flash);

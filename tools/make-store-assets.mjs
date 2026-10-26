@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'store');
+await rm(join(out, 'screenshots'), { recursive: true, force: true }); // numbering changes between runs
 await mkdir(join(out, 'screenshots'), { recursive: true });
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 const server = createServer(async (req, res) => {
@@ -40,7 +41,8 @@ for (const [name, w, h, kind] of CAPSULES) {
 const META = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, secondWind: 1 };
 async function stage(page, char, seed, t, map = 'floor') {
   await page.evaluate(([c, s, t, m, meta]) => {
-    __db.save.meta = meta; __db.save.settings.damageNumbers = true;
+    __db.save.meta = meta; __db.save.settings.damageNumbers = true; __db.save.tutorialSeen = true;
+    document.getElementById('toasts').style.display = 'none'; // no achievement popups in store shots
     __db.start(c, s, m); __db.setAutopilot(true); __db.simulate(t); __db.setSpeed(1);
   }, [char, seed, t, map, META]);
 }
@@ -50,7 +52,7 @@ const shotPage = await browser.newPage({ viewport: { width: 1920, height: 1080 }
 await shotPage.goto(base);
 await shotPage.waitForFunction(() => window.__db);
 await shotPage.screenshot({ path: join(out, 'screenshots', '01_title.png') });
-const SHOTS = [['stocker', 3, 70, 'floor'], ['cashier', 4, 230, 'floor'], ['security', 11, 400, 'floor'], ['janitor', 9, 550, 'floor'], ['cashier', 5, 200, 'electronics']];
+const SHOTS = [['cashier', 6, 150, 'toys'], ['stocker', 3, 70, 'floor'], ['cashier', 4, 230, 'floor'], ['security', 11, 400, 'floor'], ['janitor', 9, 550, 'floor'], ['cashier', 5, 200, 'electronics']];
 let i = 2;
 for (const [c, s, t, m] of SHOTS) {
   await stage(shotPage, c, s, t, m);

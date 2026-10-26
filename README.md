@@ -5,12 +5,13 @@ the only one working the floor. Weapons fire on their own; you move, level up,
 and survive until 11:00 AM.
 
 - 10-minute runs (a 6-hour shift), 11 weapons, 6 passives, 6 evolutions
-- 7 shopper types, elite "Manager Requesters", Regional / District Manager bosses
-- Two departments: Main Floor, and Electronics (unlocks after a full shift)
+- 9 shopper types, elite "Manager Requesters", three managers to beat
+- Three departments: Main Floor, Electronics (unlocks after a full shift), Toys (unlocks after a shift in Electronics)
+- Four weapons unlock at milestones; Inventory screen with records and evolution recipes
 - Endless Overtime after a win; timed events (Doorbuster Rush, Flash Sales)
 - Break Room meta upgrades and 4 unlockable staff, paid in tips
 - Keyboard, mouse and gamepad (Steam Deck friendly); all sound synthesized, no assets to license
-- 9 Steam achievements wired through steamworks.js
+- 10 Steam achievements wired through steamworks.js
 - English, 简体中文, Русский, Español, Português (Brasil), Deutsch — follows Steam's language, switchable in Settings
 - Demo mode for Steam Next Fest (`?demo`, `npm run demo`, or a `demo.flag` file in the build's resources)
 
@@ -40,14 +41,15 @@ npm run i18n       # every language: missing strings, overflow, screenshots
 The bot kites with a 16-direction danger score and levels owned weapons
 first. Current balance (20 runs each): a fresh save wins about 1 in 5 with a
 median of ~5 minutes; a maxed Break Room wins ~3 in 4; Electronics with a
-maxed save about 1 in 2; Overtime ends a strong build in ~4 minutes.
+maxed save about 1 in 2; Toys about 1 in 4; Overtime ends a strong build in
+~4 minutes.
 
 All tuning is in `src/data.js`.
 
 ## Getting it on Steam
 
 1. **Steamworks account**: pay the $100 app fee, get an App ID, put it in
-   `steam_appid.txt` (480 is Valve's test app), and add the 9 achievement
+   `steam_appid.txt` (480 is Valve's test app), and add the 10 achievement
    IDs from `src/data.js` (`ACHIEVEMENTS`) in the Steamworks admin.
 2. **Store page first, game second.** Put the page up as early as possible.
    Wishlists drive launch visibility. Needs: capsule art, 5+ screenshots

@@ -184,6 +184,8 @@ export const ENEMIES = {
   requester: { name: 'Manager Requester', hp: 220, speed: 30, dmg: 15, xp: 25, r: 8, sprite: 'requester', elite: true, knockResist: 0.8 },
   scalper:   { name: 'Scalper', hp: 14, speed: 66, dmg: 5, xp: 2, r: 5, sprite: 'scalper', ranged: true },
   camper:    { name: 'Line Camper', hp: 90, speed: 16, dmg: 10, xp: 4, r: 9, sprite: 'camper', knockResist: 0.7, splits: 3 },
+  kid:       { name: 'Sugar Rush Kid', hp: 7, speed: 84, dmg: 3, xp: 1, r: 4, sprite: 'kid' },
+  hoarder:   { name: 'Toy Hoarder', hp: 70, speed: 24, dmg: 11, xp: 4, r: 8, sprite: 'hoarder', knockResist: 0.6 },
   boss:      { name: 'Regional Manager', hp: 6000, speed: 28, dmg: 25, xp: 0, r: 16, sprite: 'boss', boss: true, knockResist: 1 },
 };
 
@@ -224,6 +226,23 @@ export const MAPS = {
   },
 };
 
+MAPS.toys = {
+  name: 'Toys', desc: 'The aisle every parent fears. Unlocks after a full shift in Electronics.',
+  tiles: ['#f3d9e6', '#ead0de'], stripe: '#53b96f', bg: '#e9cfdc', unlockMap: 'electronics', boss: 'Store Owner', bossHp: 2.6, hpMul: 2.5, speedMul: 1.15,
+  waves: [
+    { shopper: 2, kid: 2 },
+    { shopper: 2, kid: 3, walker: 1 },
+    { shopper: 2, kid: 3, hoarder: 1, clipper: 1 },
+    { shopper: 2, kid: 4, hoarder: 1, clipper: 1, walker: 1 },
+    { shopper: 1, kid: 4, hoarder: 2, clipper: 1, walker: 2 },
+    { shopper: 1, kid: 5, hoarder: 2, scalper: 1, walker: 2 },
+    { shopper: 1, kid: 5, hoarder: 2, scalper: 2, cart: 1 },
+    { shopper: 1, kid: 6, hoarder: 3, scalper: 2, cart: 2 },
+    { shopper: 1, kid: 6, hoarder: 3, scalper: 2, cart: 2 },
+    { shopper: 1, kid: 5, hoarder: 2, scalper: 2, cart: 2 },
+  ],
+};
+
 export const CHARACTERS = {
   stocker: { name: 'Stocker', cost: 0, weapon: 'priceGun', desc: 'Starts with the Price Gun. Steady all-rounder.',
     vest: '#d8433b', mods: {} },
@@ -255,6 +274,7 @@ export const ACHIEVEMENTS = {
   OVERTIME: 'Unpaid Overtime — last 5 minutes past 11:00 AM',
   ELECTRONICS: 'Gadget Hound — survive a shift in Electronics',
   FULL_ARSENAL: 'Stocked Shelves — hold 6 weapons at once',
+  TOYS: 'Toy Story — survive a shift in Toys',
 };
 
 export const ANNOUNCEMENTS = [

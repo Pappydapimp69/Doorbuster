@@ -24,8 +24,9 @@ upgrades, and build something that can hold the line.
   promoted to the Clearance Cannon, Cart Train, or Store-Wide Announcement.
 
 **Know your customers**
-- Shoppers, Speed Walkers, Cart Pushers, Coupon Clippers, Scalpers, and Line
-  Campers who split into three people when you finally knock their tent over.
+- Shoppers, Speed Walkers, Cart Pushers, Coupon Clippers, Scalpers, Sugar
+  Rush Kids, Toy Hoarders, and Line Campers who split into three people when
+  you finally knock their tent over.
 - Customers who would like to speak to your manager. Your manager is busy.
 - The Regional Manager. He'd like to circle back.
 
@@ -36,7 +37,8 @@ upgrades, and build something that can hold the line.
 
 **Earn tips, spend them in the Break Room**
 - Permanent perks, four staff to hire (Stocker, Cashier, Security, Night
-  Janitor), and a second department to unlock: Electronics, after midnight.
+  Janitor), four weapons to unlock, and two more departments: Electronics and
+  the Toy aisle every parent fears.
 
 **Built for the couch and the Deck**
 - Full gamepad support, readable at handheld size, toggles for screen shake
