@@ -1,6 +1,6 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, WAVES, CHARACTERS, META, ACHIEVEMENTS, ANNOUNCEMENTS,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, ACHIEVEMENTS, ANNOUNCEMENTS, MAPS as STAGES,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes } from './audio.js';
@@ -18,6 +18,7 @@ const ui = { hud: $('#hud'), screen: $('#screen'), banner: $('#banner') };
 
 const ICONS = {
   priceGun: '🏷️', boxCutter: '✂️', carts: '🛒', wetFloor: '💧', paSystem: '📢', couponStorm: '🎟️', barcode: '📟',
+  giftCard: '🎁', extinguisher: '🧯', alarm: '🚨', chicken: '🍗',
   shoes: '👟', energy: '🥤', nameTag: '📛', lanyard: '🪪', overtime: '⏰', union: '💳',
 };
 
@@ -143,16 +144,16 @@ function refreshStats() {
 }
 
 // ---------- run setup ----------
-function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0) {
+function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, map = save.map || 'floor') {
   rng = mulberry32(seed);
   G = {
-    seed, char: charId, t: 0, level: 1, xp: 0, xpNeed: xpFor(1), pendingLevels: 0,
+    seed, char: charId, map, stage: STAGES[map], overtime: false, otStart: 0, paid: false, t: 0, level: 1, xp: 0, xpNeed: xpFor(1), pendingLevels: 0,
     player: { x: 0, y: 0, hp: 100, inv: 0, face: 1, fx: 1, fy: 0, anim: 0, moving: false },
-    enemies: [], projs: [], eprojs: [], gems: [], drops: [], puddles: [], fx: [], texts: [], parts: [],
+    enemies: [], projs: [], eprojs: [], lobs: [], gems: [], drops: [], puddles: [], fx: [], texts: [], parts: [],
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
     rerolls: metaLv('rerolls'), revives: metaLv('secondWind'), banished: new Set(),
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
-    nextAnnounce: 25, dmgBy: {}, evolved: 0, choices: null, grid: new Map(),
+    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, evolved: 0, choices: null, grid: new Map(),
   };
   G.stats = computeStats();
   G.player.hp = G.stats.maxHp;
@@ -165,6 +166,7 @@ function xpFor(L) { return L < 20 ? 4 + (L - 1) * 6 : 118 + (L - 20) * 12 + (L -
 
 function addWeapon(id) {
   G.weapons.push({ id, lv: 1, cd: 0.3, evolved: false, ang: 0 });
+  if (G.weapons.length >= MAX_WEAPONS) achieve('FULL_ARSENAL');
 }
 function wstats(w) { return w.evolved ? EVOLUTIONS[w.id].stats : WEAPONS[w.id].lv[w.lv - 1]; }
 
@@ -192,15 +194,18 @@ function nearby(x, y, r, out = []) {
 const tmp = [], tmp2 = [];
 
 // ---------- enemies ----------
-function hpScale() { return 1 + G.t / 170 + (G.t / 360) ** 2; }
+function hpScale() {
+  const ot = G.overtime ? ((G.t - G.otStart) / 90) ** 2 : 0; // overtime climbs until it wins
+  return 1 + G.t / 170 + (G.t / 360) ** 2 + ot;
+}
 
 function spawnEnemy(type, ang = rand(0, Math.PI * 2), d = rand(270, 310)) {
   const def = ENEMIES[type];
   const p = G.player;
-  const scale = def.boss ? 1 : hpScale();
+  const scale = def.boss ? 1 : hpScale() * G.stage.hpMul;
   const e = {
     type, def, x: p.x + Math.cos(ang) * d, y: p.y + Math.sin(ang) * d,
-    hp: def.hp * scale, maxHp: def.hp * scale, speed: def.speed * rand(0.9, 1.1), r: def.r,
+    hp: def.hp * scale, maxHp: def.hp * scale, speed: def.speed * rand(0.9, 1.1) * G.stage.speedMul, r: def.r,
     vx: 0, vy: 0, kx: 0, ky: 0, flash: 0, slow: 0, hit: {}, var: Math.floor(rng() * SHIRT_COUNT),
     t: rand(0, 3), charging: 0, cdx: 0, cdy: 0, dead: false, face: 1,
   };
@@ -211,13 +216,14 @@ function spawnEnemy(type, ang = rand(0, Math.PI * 2), d = rand(270, 310)) {
 function director(dt) {
   const t = G.t;
   const minute = Math.min(9, Math.floor(t / 60));
-  const target = Math.min(400, 14 + t * 0.55);
+  const target = Math.min(G.overtime ? 520 : 400, 14 + t * 0.55);
   const rate = 2.2 + t / 16;
-  if (!G.boss || G.bossDead) {
-    G.spawnAcc += rate * dt;
+  {
+    // Bosses get the floor to themselves, mostly: the crowd thins but never stops.
+    G.spawnAcc += rate * dt * (G.boss && !G.bossDead ? 0.35 : 1);
     while (G.spawnAcc >= 1) {
       G.spawnAcc -= 1;
-      if (G.enemies.length < target) spawnEnemy(weighted(WAVES[minute]));
+      if (G.enemies.length < target) spawnEnemy(weighted(G.stage.waves[minute]));
     }
   }
   const once = (key, at, fn) => { if (t >= at && !G.events.has(key)) { G.events.add(key); fn(); } };
@@ -239,13 +245,23 @@ function director(dt) {
     announce('A customer would like to speak to your manager.', true);
     spawnEnemy('requester');
   });
-  once('boss', BOSS_AT, () => {
-    announce('THE REGIONAL MANAGER IS HERE', true);
-    sfx('boss');
-    G.boss = spawnEnemy('boss', rand(0, Math.PI * 2), 220);
-    G.shake = Math.max(G.shake, 0.8);
-  });
+  once('boss', BOSS_AT, () => spawnBoss(1));
+  // Overtime: a fresh manager every two minutes, each one tougher.
+  if (G.overtime) {
+    const n = Math.floor((t - G.otStart) / 120);
+    once('otboss' + n, G.otStart + n * 120 + 60, () => spawnBoss(1.5 + n * 0.75));
+  }
   if (t >= G.nextAnnounce) { G.nextAnnounce = t + rand(35, 60); announce(pick(ANNOUNCEMENTS)); }
+}
+
+function spawnBoss(mult) {
+  announce(`THE ${G.stage.boss.toUpperCase()} IS HERE`, true);
+  sfx('boss');
+  const b = spawnEnemy('boss', rand(0, Math.PI * 2), 220);
+  b.hp = b.maxHp = ENEMIES.boss.hp * G.stage.bossHp * mult;
+  b.var = G.map === 'electronics' ? 1 : 0;
+  G.boss = b; G.bossDead = false;
+  G.shake = Math.max(G.shake, 0.8);
 }
 
 function updateEnemies(dt) {
@@ -311,7 +327,7 @@ function updateEnemies(dt) {
     nearby(p.x, p.y, 24, tmp);
     for (const e of tmp) {
       const rr = e.r + 5;
-      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * (e.def.boss ? 1 : 1 + G.t / 600), e.type); break; }
+      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
     }
   }
 }
@@ -333,6 +349,8 @@ function bossAI(e, dt, dx, dy, d) {
     announce('"Let\'s circle back on that."');
   }
   if (e.charging > 0) { e.charging -= dt; e.x += e.cdx * 220 * dt; e.y += e.cdy * 220 * dt; }
+  // Can't be kited off forever: closes distance fast when left behind.
+  e.speed = ENEMIES.boss.speed * (d > 180 ? 2.4 : 1) * (G.overtime ? 1.3 : 1);
 }
 
 function hurtPlayer(raw, src = '?') {
@@ -352,8 +370,10 @@ function hurtPlayer(raw, src = '?') {
   }
 }
 
+let curSrc = '?';
 function damageEnemy(e, dmg, kx, ky, knock) {
   if (e.dead) return;
+  G.dmgDealt[curSrc] = (G.dmgDealt[curSrc] || 0) + Math.min(dmg, Math.max(0, e.hp));
   e.hp -= dmg;
   e.flash = 0.08;
   const res = e.def.knockResist || 0;
@@ -375,6 +395,9 @@ function killEnemy(e) {
     G.parts.push({ x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-80, 20), life: rand(0.3, 0.6), c: pick(['#f3f1ea', '#f5d142', '#e86a9a', '#68b6ea']) });
   }
   if (e.def.xp) dropGem(e.x, e.y, e.def.xp);
+  if (e.def.splits) for (let i = 0; i < e.def.splits; i++) {
+    const s = spawnEnemy('shopper', 0, 0); s.x = e.x + rand(-8, 8); s.y = e.y + rand(-8, 8);
+  }
   if (rng() < 0.03 * G.stats.greed) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: 1 });
   if (rng() < 0.006 && G.drops.filter((d) => d.kind === 'heart').length < 6) G.drops.push({ x: e.x, y: e.y, kind: 'heart' });
   if (e.def.elite) {
@@ -384,7 +407,7 @@ function killEnemy(e) {
   if (e.def.boss) {
     G.bossDead = true;
     G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: 100 });
-    announce('The Regional Manager has left the building.', true);
+    announce(`The ${G.stage.boss} has left the building.`, true);
     achieve('BOSS_DOWN');
     save.stats.bossKills++;
     G.shake = 1; G.hitstop = 0.25;
@@ -484,6 +507,59 @@ function fireWeapon(w) {
       sfx('laser');
       return true;
     }
+    case 'giftCard': {
+      const t = closestEnemies(1, 220)[0];
+      const base = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(p.fy, p.fx);
+      for (let i = 0; i < s.count; i++) {
+        const a = base + (i - (s.count - 1) / 2) * 0.5;
+        G.projs.push({ x: p.x, y: p.y, vx: Math.cos(a) * s.speed, vy: Math.sin(a) * s.speed, dmg: s.dmg, pierce: 999, r: 4,
+          life: 5, kind: 'card', range: s.range, sp: s.speed, travel: 0, back: false, hits: new Set(), spin: 0 });
+      }
+      sfx('shoot');
+      return true;
+    }
+    case 'extinguisher': {
+      const t = closestEnemies(1, s.range * 1.5)[0];
+      if (!t) return false;
+      const ang = Math.atan2(t.y - p.y, t.x - p.x);
+      nearby(p.x, p.y, s.range + 10, tmp);
+      for (const e of tmp) {
+        const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
+        if (d > s.range + e.r) continue;
+        let da = Math.atan2(dy, dx) - ang; da = Math.atan2(Math.sin(da), Math.cos(da));
+        if (Math.abs(da) < s.width) { e.slow = 1.2; damageEnemy(e, s.dmg, dx / (d || 1), dy / (d || 1), s.knock); }
+      }
+      for (let i = 0; i < 26; i++) {
+        const a = ang + rand(-s.width, s.width), v = rand(0.4, 1) * s.range * 3;
+        G.parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.3, c: '#ffffff', float: true });
+      }
+      sfx('slash');
+      return true;
+    }
+    case 'alarm': {
+      let cur = closestEnemies(1, 150)[0];
+      if (!cur) return false;
+      const pts = [[p.x, p.y]], hit = new Set();
+      for (let i = 0; i <= s.chains && cur; i++) {
+        hit.add(cur); pts.push([cur.x, cur.y]);
+        damageEnemy(cur, s.dmg, 0, 0, 0);
+        let best = null, bd = 85 * 85;
+        nearby(cur.x, cur.y, 85, tmp);
+        for (const e of tmp) { if (hit.has(e) || e.dead) continue; const d = dist2(e, cur); if (d < bd) { bd = d; best = e; } }
+        cur = best;
+      }
+      G.fx.push({ kind: 'chain', pts, life: 0.2, max: 0.2 });
+      sfx('laser');
+      return true;
+    }
+    case 'chicken': {
+      for (let i = 0; i < s.count; i++) {
+        const t = closestEnemies(10, 200);
+        const tg = t.length ? pick(t) : { x: p.x + rand(-80, 80), y: p.y + rand(-80, 80) };
+        G.lobs.push({ sx: p.x, sy: p.y, tx: tg.x, ty: tg.y, t: 0, dur: 0.6, dmg: s.dmg, r: s.radius * G.stats.area });
+      }
+      return true;
+    }
   }
   return false;
 }
@@ -493,6 +569,7 @@ function updateWeapons(dt) {
   for (const w of G.weapons) {
     const s = wstats(w);
     if (w.id === 'carts') {
+      curSrc = 'carts';
       w.ang += s.spin * dt;
       w.pos = [];
       for (let i = 0; i < s.count; i++) {
@@ -503,7 +580,7 @@ function updateWeapons(dt) {
         for (const e of tmp) {
           if ((e.x - x) ** 2 + (e.y - y) ** 2 > (e.r + 6) ** 2) continue;
           const last = e.hit.carts || -9;
-          if (G.t - last < 0.5) continue;
+          if (G.t - last < 0.35) continue;
           e.hit.carts = G.t;
           const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
           damageEnemy(e, s.dmg, (e.x - p.x) / d, (e.y - p.y) / d, 70);
@@ -513,7 +590,10 @@ function updateWeapons(dt) {
     }
     w.cd -= dt;
     if (w.cd <= 0) {
+      curSrc = w.id;
+      const n0 = [G.projs.length, G.fx.length, G.puddles.length, G.lobs.length];
       const fired = fireWeapon(w);
+      [G.projs, G.fx, G.puddles, G.lobs].forEach((list, i) => { for (let k = n0[i]; k < list.length; k++) list[k].src = w.id; });
       w.cd = fired ? s.cd * (1 - G.stats.cooldown) : 0.1;
     }
   }
@@ -521,6 +601,7 @@ function updateWeapons(dt) {
 
 function updateProjectiles(dt) {
   for (const pr of G.projs) {
+    curSrc = pr.src;
     pr.life -= dt;
     if (pr.homing) {
       if (!pr.target || pr.target.dead) {
@@ -535,6 +616,16 @@ function updateProjectiles(dt) {
         let da = Math.atan2(Math.sin(a - cur), Math.cos(a - cur));
         const na = cur + clamp(da, -8 * dt, 8 * dt);
         pr.vx = Math.cos(na) * pr.sp; pr.vy = Math.sin(na) * pr.sp;
+      }
+    }
+    if (pr.kind === 'card') {
+      pr.spin += dt * 20;
+      pr.travel += pr.sp * dt;
+      if (!pr.back && pr.travel > pr.range) { pr.back = true; pr.hits.clear(); }
+      if (pr.back) {
+        const p = G.player, dx = p.x - pr.x, dy = p.y - pr.y, d = Math.hypot(dx, dy) || 1;
+        pr.vx = dx / d * pr.sp * 1.2; pr.vy = dy / d * pr.sp * 1.2;
+        if (d < 8) pr.life = 0;
       }
     }
     pr.x += pr.vx * dt; pr.y += pr.vy * dt;
@@ -553,6 +644,23 @@ function updateProjectiles(dt) {
   }
   G.projs = G.projs.filter((p) => p.life > 0);
 
+  for (const l of G.lobs) {
+    curSrc = l.src;
+    l.t += dt;
+    if (l.t >= l.dur) {
+      l.done = true;
+      G.fx.push({ kind: 'boom', x: l.tx, y: l.ty, r: l.r, life: 0.3, max: 0.3 });
+      nearby(l.tx, l.ty, l.r + 10, tmp);
+      for (const e of tmp) {
+        const d = Math.hypot(e.x - l.tx, e.y - l.ty);
+        if (d < l.r + e.r) damageEnemy(e, l.dmg, (e.x - l.tx) / (d || 1), (e.y - l.ty) / (d || 1), 80);
+      }
+      G.shake = Math.max(G.shake, 0.2);
+      sfx('slash');
+    }
+  }
+  G.lobs = G.lobs.filter((l) => !l.done);
+
   const p = G.player;
   for (const pr of G.eprojs) {
     pr.life -= dt; pr.x += pr.vx * dt; pr.y += pr.vy * dt;
@@ -561,6 +669,7 @@ function updateProjectiles(dt) {
   G.eprojs = G.eprojs.filter((q) => q.life > 0);
 
   for (const f of G.fx) {
+    curSrc = f.src;
     f.life -= dt;
     if (f.kind === 'ring') {
       f.r = f.maxR * (1 - f.life / f.max);
@@ -576,6 +685,7 @@ function updateProjectiles(dt) {
   G.fx = G.fx.filter((f) => f.life > 0);
 
   for (const pd of G.puddles) {
+    curSrc = pd.src;
     pd.life -= dt; pd.tick -= dt;
     if (pd.tick <= 0) {
       pd.tick = 0.4;
@@ -772,19 +882,20 @@ function update(dt) {
   updatePickups(dt);
   for (const t of G.texts) { t.life -= dt; t.y -= 20 * dt; }
   G.texts = G.texts.filter((t) => t.life > 0);
-  for (const q of G.parts) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 200 * dt; }
+  for (const q of G.parts) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; if (q.float) { q.vx *= 0.9; q.vy *= 0.9; } else q.vy += 200 * dt; }
   G.parts = G.parts.filter((q) => q.life > 0);
   G.shake = Math.max(0, G.shake - dt * 1.5);
   audio.intensity = clamp(G.enemies.length / 250, 0, 1);
   if (G.kills >= 1000) achieve('BLACK_FRIDAY');
-  if (G.t >= RUN_SECONDS) { endRun(true); return; }
+  if (G.t >= RUN_SECONDS && !G.overtime) { endRun(true); return; }
+  if (G.overtime && G.t - G.otStart >= 300) achieve('OVERTIME');
   if (G.pendingLevels > 0 && state === 'play') openLevelUp();
 }
 
 // ---------- render ----------
 let camX = 0, camY = 0;
 function render() {
-  cx.fillStyle = '#c9c6bd';
+  cx.fillStyle = G ? G.stage.bg : '#c9c6bd';
   cx.fillRect(0, 0, W, H);
   if (!G) return;
   const p = G.player;
@@ -837,8 +948,18 @@ function render() {
   }
   for (const w of G.weapons) if (w.id === 'carts' && w.pos) for (const [x, y] of w.pos) cx.drawImage(SPR.cart, Math.round(x - 5), Math.round(y - 3));
   for (const pr of G.projs) {
+    if (pr.kind === 'card') {
+      cx.save(); cx.translate(Math.round(pr.x), Math.round(pr.y)); cx.rotate(pr.spin);
+      cx.fillStyle = '#000'; cx.fillRect(-4, -3, 8, 6); cx.fillStyle = '#c9a2ff'; cx.fillRect(-3, -2, 6, 4); cx.fillStyle = '#f5d142'; cx.fillRect(-3, -1, 2, 1);
+      cx.restore(); continue;
+    }
     if (pr.kind === 'sticker') { cx.fillStyle = '#000'; cx.fillRect(Math.round(pr.x - 2), Math.round(pr.y - 2), 5, 4); cx.fillStyle = '#ff9a2e'; cx.fillRect(Math.round(pr.x - 1), Math.round(pr.y - 1), 3, 2); }
     else { cx.fillStyle = '#1e6b3a'; cx.fillRect(Math.round(pr.x - 3), Math.round(pr.y - 2), 6, 4); cx.fillStyle = '#7ee08f'; cx.fillRect(Math.round(pr.x - 2), Math.round(pr.y - 1), 4, 2); }
+  }
+  for (const l of G.lobs) {
+    const k = l.t / l.dur, x = l.sx + (l.tx - l.sx) * k, y = l.sy + (l.ty - l.sy) * k - Math.sin(k * Math.PI) * 40;
+    cx.fillStyle = 'rgba(0,0,0,0.2)'; cx.beginPath(); cx.ellipse(l.tx, l.ty, l.r * 0.5 * k, l.r * 0.3 * k, 0, 0, Math.PI * 2); cx.fill();
+    cx.drawImage(SPR.chicken, Math.round(x - 3), Math.round(y - 3));
   }
   for (const q of G.eprojs) {
     if (q.kind === 'memo') { cx.fillStyle = '#000'; cx.fillRect(Math.round(q.x - 3), Math.round(q.y - 3), 7, 7); cx.fillStyle = '#fff'; cx.fillRect(Math.round(q.x - 2), Math.round(q.y - 2), 5, 5); cx.fillStyle = '#e04848'; cx.fillRect(Math.round(q.x - 1), Math.round(q.y - 1), 3, 1); }
@@ -852,6 +973,17 @@ function render() {
     } else if (f.kind === 'ring') {
       cx.strokeStyle = `rgba(255,220,90,${a})`; cx.lineWidth = 2;
       cx.beginPath(); cx.arc(f.x, f.y, f.r, 0, Math.PI * 2); cx.stroke();
+    } else if (f.kind === 'boom') {
+      cx.fillStyle = `rgba(255,170,60,${a * 0.6})`; cx.beginPath(); cx.arc(f.x, f.y, f.r * (1.2 - a * 0.4), 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = `rgba(255,240,180,${a})`; cx.beginPath(); cx.arc(f.x, f.y, f.r * 0.5 * a, 0, Math.PI * 2); cx.fill();
+    } else if (f.kind === 'chain') {
+      cx.strokeStyle = `rgba(120,220,255,${a})`; cx.lineWidth = 2; cx.beginPath();
+      f.pts.forEach(([x, y], i) => {
+        if (!i) { cx.moveTo(x, y); return; }
+        const [px, py] = f.pts[i - 1];
+        cx.lineTo((px + x) / 2 + rand(-4, 4), (py + y) / 2 + rand(-4, 4)); cx.lineTo(x, y);
+      });
+      cx.stroke();
     } else if (f.kind === 'beam') {
       cx.save(); cx.translate(f.x, f.y); cx.rotate(f.ang);
       cx.fillStyle = `rgba(255,40,40,${a})`; cx.fillRect(0, -2, f.len, 4);
@@ -900,12 +1032,12 @@ function drawFloor() {
   const x0 = Math.floor(camX / T), y0 = Math.floor(camY / T);
   for (let i = x0; i <= x0 + W / T + 1; i++) for (let j = y0; j <= y0 + H / T + 1; j++) {
     const sx = i * T - camX, sy = j * T - camY;
-    cx.fillStyle = (i + j) & 1 ? '#d8d5cc' : '#cfccc2';
+    cx.fillStyle = G.stage.tiles[(i + j) & 1];
     cx.fillRect(sx, sy, T, T);
     const h = ((i * 374761393) ^ (j * 668265263)) >>> 0;
     const r = (h % 1000) / 1000;
     // Aisle stripes and the odd floor decal for texture.
-    if (((i % 12) + 12) % 12 === 0) { cx.fillStyle = '#e6c84a'; cx.fillRect(sx, sy, 2, T); }
+    if (((i % 12) + 12) % 12 === 0) { cx.fillStyle = G.stage.stripe; cx.fillRect(sx, sy, 2, T); }
     if (r < 0.02) { cx.fillStyle = '#e04848'; cx.fillRect(sx + 6, sy + 8, 10, 6); cx.fillStyle = '#fff'; cx.fillRect(sx + 8, sy + 10, 6, 2); }
     else if (r < 0.035) { cx.fillStyle = 'rgba(140,90,40,0.25)'; cx.beginPath(); cx.ellipse(sx + 12, sy + 12, 7, 4, 0, 0, Math.PI * 2); cx.fill(); }
     else if (r < 0.05) { cx.fillStyle = '#f3f1ea'; cx.fillRect(sx + 10, sy + 6, 4, 5); }
@@ -927,7 +1059,7 @@ function renderHud() {
   const w = G.weapons.map((x) => `<span class="slot${x.evolved ? ' evo' : ''}">${ICONS[x.id]}<b>${x.evolved ? '★' : x.lv}</b></span>`).join('');
   const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('');
   const html = `<div class="xpbar"><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>LV ${G.level}</span></div>
-    <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${G.t < BOSS_AT ? 'shift ends 11:00 AM' : 'HOLD ON'}</small></div>
+    <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${G.overtime ? 'OVERTIME (unpaid)' : G.t < BOSS_AT ? 'shift ends 11:00 AM' : 'HOLD ON'}</small></div>
     <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}</div></div><div class="slots">${ps}</div>`;
   if (html !== hudCache) { ui.hud.innerHTML = html; hudCache = html; }
 }
@@ -974,7 +1106,9 @@ ui.screen.addEventListener('mouseover', (e) => {
 });
 
 const ACTIONS = {
-  start: () => startRun(),
+  start: () => (Object.keys(STAGES).some((id) => id !== 'floor' && mapUnlocked(id)) && state === 'menu' ? showMaps() : startRun()),
+  map: (id) => { if (!mapUnlocked(id)) return; save.map = id; writeSave(save); startRun(); },
+  overtime: () => startOvertime(),
   shop: () => showShop(),
   staff: () => showStaff(),
   settings: () => showSettings(state === 'paused' ? showPause : showMenu),
@@ -1084,10 +1218,10 @@ function renderLevelUp() {
     ${G.rerolls > 0 ? `<button id="reroll" class="btn sm" data-act="reroll">Price check (reroll) ×${G.rerolls} [R]</button>` : ''}`);
 }
 
-function startRun(charId, seed) {
+function startRun(charId, seed, map) {
   initAudio();
   audio.sfx = save.settings.sfx; audio.music = save.settings.music; setVolumes();
-  newRun(charId, seed);
+  newRun(charId, seed, map);
   state = 'play';
   show('');
   startMusic();
@@ -1101,25 +1235,56 @@ function endRun(win) {
   clearTimeout(announce.t); ui.banner.className = '';
   sfx(win ? 'win' : 'lose');
   const survived = Math.floor(G.t);
-  const bonus = Math.round((Math.floor(G.kills / 25) + Math.floor(survived / 60) * 5 + (win ? 50 : 0)) * G.stats.greed);
+  let bonus;
+  if (G.overtime) {
+    // Shift was already paid at 11:00; overtime pays per minute on top of tips picked up since.
+    bonus = Math.round((Math.floor((G.t - G.otStart) / 60) * 10 + Math.floor((G.kills - G.otKills) / 25)) * G.stats.greed);
+    save.stats.bestOvertime = Math.max(save.stats.bestOvertime || 0, Math.floor(G.t - G.otStart));
+  } else {
+    bonus = Math.round((Math.floor(G.kills / 25) + Math.floor(survived / 60) * 5 + (win ? 50 : 0)) * G.stats.greed);
+    save.stats.runs++;
+    save.stats.bestTime = Math.max(save.stats.bestTime, survived);
+  }
   const total = G.tipsRun + bonus;
   save.tips += total;
-  save.stats.runs++; save.stats.totalKills += G.kills;
-  save.stats.bestTime = Math.max(save.stats.bestTime, survived);
+  save.stats.totalKills += G.kills - (G.otKills || 0);
   if (win) {
     save.stats.wins++;
     achieve('FIRST_SHIFT');
+    if (G.map === 'electronics') achieve('ELECTRONICS');
     if (G.dmgTaken < 100) achieve('UNTOUCHABLE');
   }
   writeSave(save);
   const mm = Math.floor(survived / 60), ss = String(survived % 60).padStart(2, '0');
-  show(`<h2>${win ? 'SHIFT COMPLETE' : 'TRAMPLED'}</h2>
-    <p class="sub">${win ? 'You clocked out at 11:00 AM. Nobody said thank you.' : `Clocked out early at ${clockText()}.`}</p>
+  const title = win ? 'SHIFT COMPLETE' : G.overtime ? 'OVERTIME OVER' : 'TRAMPLED';
+  const sub = win ? 'You clocked out at 11:00 AM. Nobody said thank you.'
+    : G.overtime ? `You worked ${Math.floor((G.t - G.otStart) / 60)} minutes of overtime. Unpaid, technically.`
+    : `Clocked out early at ${clockText()}.`;
+  show(`<h2>${title}</h2><p class="sub">${sub}</p>
     <div class="stats"><div><b>${mm}:${ss}</b>survived</div><div><b>${G.kills}</b>shoppers</div><div><b>${G.level}</b>level</div><div><b>💰 ${total}</b>tips (+${bonus} bonus)</div></div>
-    <div class="menu"><button class="btn" data-act="start">Pick Up Another Shift</button>
+    <div class="menu">${win ? '<button class="btn" data-act="overtime">Work Overtime (endless)</button>' : ''}
+    <button class="btn" data-act="start">Pick Up Another Shift</button>
     <button class="btn" data-act="staff">Staff Room</button>
     <button class="btn" data-act="shop">Break Room</button>
     <button class="btn" data-act="menu">Main Menu</button></div>`, null);
+}
+
+function startOvertime() {
+  G.overtime = true; G.otStart = G.t; G.otKills = G.kills; G.tipsRun = 0;
+  state = 'play';
+  show('');
+  startMusic(124);
+  announce('OVERTIME. The doors never close.', true);
+}
+
+function mapUnlocked(id) { return (save.stats.wins || 0) >= (STAGES[id].unlockWins || 0); }
+
+function showMaps() {
+  show(`<h2>Choose a Department</h2><div class="grid" data-cols="2">${Object.entries(STAGES).map(([id, m]) => {
+    const open = mapUnlocked(id);
+    return `<button class="btn card${(save.map || 'floor') === id ? ' sel' : ''}" data-act="map" data-arg="${id}" ${open ? '' : 'disabled'}>
+      <b>${m.name}</b><span>${m.desc}</span><i>${open ? 'Clock in' : '🔒 Survive a full shift'}</i></button>`;
+  }).join('')}</div><button class="btn back" data-act="menu">Back</button>`, showMenu);
 }
 
 // ---------- loop ----------
@@ -1172,7 +1337,8 @@ function botChoice() {
 // Test hooks for automated playtests (Playwright).
 window.__db = {
   get G() { return G; }, get state() { return state; }, get save() { return save; },
-  start: (charId = 'stocker', seed = 1) => startRun(charId, seed),
+  start: (charId = 'stocker', seed = 1, map = 'floor') => startRun(charId, seed, map),
+  overtime: () => startOvertime(),
   setSpeed: (s) => (speed = s),
   setAutopilot: (v) => (autopilot = v),
   choose: (i = 0) => ACTIONS.choose(i),
@@ -1185,6 +1351,6 @@ window.__db = {
       update(STEP);
     }
     return { t: G.t, state, level: G.level, kills: G.kills, hp: G.player.hp, enemies: G.enemies.length,
-      weapons: G.weapons.map((w) => w.id + ':' + (w.evolved ? 'E' : w.lv)), passives: { ...G.passives }, dmgTaken: G.dmgTaken, boss: G.bossDead ? 'dead' : G.boss ? Math.round(G.boss.hp) : '-', dmgBy: G.dmgBy, nearby: nearby(G.player.x, G.player.y, 40, []).length };
+      weapons: G.weapons.map((w) => w.id + ':' + (w.evolved ? 'E' : w.lv)), passives: { ...G.passives }, dmgTaken: G.dmgTaken, dealt: G.dmgDealt, boss: G.bossDead ? 'dead' : G.boss ? Math.round(G.boss.hp) : '-', dmgBy: G.dmgBy, nearby: nearby(G.player.x, G.player.y, 40, []).length };
   },
 };

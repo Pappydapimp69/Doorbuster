@@ -25,11 +25,11 @@ export const WEAPONS = {
     name: 'Box Cutter', icon: 'cutter',
     desc: 'Slashes in front of you. Close range, big damage.',
     lv: [
-      { dmg: 22, cd: 1.2, range: 34, arcs: 1 },
-      { dmg: 28, cd: 1.1, range: 38, arcs: 1 },
-      { dmg: 32, cd: 1.0, range: 40, arcs: 2 },
-      { dmg: 40, cd: 0.9, range: 44, arcs: 2 },
-      { dmg: 52, cd: 0.8, range: 50, arcs: 2 },
+      { dmg: 30, cd: 1.1, range: 36, arcs: 1 },
+      { dmg: 38, cd: 1.0, range: 40, arcs: 1 },
+      { dmg: 45, cd: 0.9, range: 42, arcs: 2 },
+      { dmg: 56, cd: 0.8, range: 46, arcs: 2 },
+      { dmg: 72, cd: 0.7, range: 52, arcs: 2 },
     ],
     lvText: ['', 'More damage, longer reach', 'Also slashes behind you', 'More damage, faster', 'Huge damage, reach'],
   },
@@ -37,11 +37,11 @@ export const WEAPONS = {
     name: 'Runaway Carts', icon: 'cart',
     desc: 'Shopping carts circle you and run shoppers over.',
     lv: [
-      { dmg: 8, count: 1, radius: 40, spin: 2.6 },
-      { dmg: 10, count: 2, radius: 42, spin: 2.8 },
-      { dmg: 12, count: 2, radius: 48, spin: 3.0 },
-      { dmg: 14, count: 3, radius: 50, spin: 3.2 },
-      { dmg: 18, count: 4, radius: 54, spin: 3.4 },
+      { dmg: 10, count: 1, radius: 40, spin: 2.6 },
+      { dmg: 13, count: 2, radius: 42, spin: 2.8 },
+      { dmg: 16, count: 2, radius: 48, spin: 3.0 },
+      { dmg: 19, count: 3, radius: 50, spin: 3.2 },
+      { dmg: 24, count: 4, radius: 54, spin: 3.4 },
     ],
     lvText: ['', '+1 cart', 'Wider, more damage', '+1 cart', '+1 cart, faster'],
   },
@@ -73,13 +73,13 @@ export const WEAPONS = {
     name: 'Coupon Storm', icon: 'coupon',
     desc: 'Homing coupons that never miss.',
     lv: [
-      { dmg: 7, cd: 1.4, count: 2, speed: 150 },
-      { dmg: 8, cd: 1.3, count: 3, speed: 160 },
-      { dmg: 10, cd: 1.2, count: 3, speed: 170 },
-      { dmg: 11, cd: 1.1, count: 4, speed: 180 },
-      { dmg: 14, cd: 1.0, count: 5, speed: 190 },
+      { dmg: 10, cd: 1.3, count: 2, speed: 150 },
+      { dmg: 12, cd: 1.2, count: 3, speed: 160 },
+      { dmg: 14, cd: 1.1, count: 4, speed: 170 },
+      { dmg: 17, cd: 1.0, count: 5, speed: 180 },
+      { dmg: 22, cd: 0.9, count: 6, speed: 190 },
     ],
-    lvText: ['', '+1 coupon', 'More damage', '+1 coupon', '+1 coupon'],
+    lvText: ['', '+1 coupon', '+1 coupon', '+1 coupon', '+1 coupon, more damage'],
   },
   barcode: {
     name: 'Barcode Laser', icon: 'laser',
@@ -92,6 +92,54 @@ export const WEAPONS = {
       { dmg: 38, cd: 1.5, length: 190, beams: 3 },
     ],
     lvText: ['', 'Longer, more damage', '+1 beam', 'Faster', '+1 beam'],
+  },
+  giftCard: {
+    name: 'Gift Card', icon: 'card',
+    desc: 'Flies out and comes back. Hits on the way both ways.',
+    lv: [
+      { dmg: 14, cd: 1.6, count: 1, range: 90, speed: 200 },
+      { dmg: 17, cd: 1.5, count: 2, range: 95, speed: 210 },
+      { dmg: 20, cd: 1.4, count: 2, range: 110, speed: 220 },
+      { dmg: 24, cd: 1.3, count: 3, range: 115, speed: 230 },
+      { dmg: 30, cd: 1.1, count: 3, range: 130, speed: 240 },
+    ],
+    lvText: ['', '+1 card', 'Farther, more damage', '+1 card', 'Farther, faster'],
+  },
+  extinguisher: {
+    name: 'Fire Extinguisher', icon: 'spray',
+    desc: 'Sprays a cone that pushes and slows.',
+    lv: [
+      { dmg: 12, cd: 1.5, range: 60, width: 0.5, knock: 110 },
+      { dmg: 15, cd: 1.4, range: 66, width: 0.55, knock: 120 },
+      { dmg: 18, cd: 1.3, range: 74, width: 0.6, knock: 130 },
+      { dmg: 22, cd: 1.2, range: 80, width: 0.7, knock: 140 },
+      { dmg: 28, cd: 1.0, range: 90, width: 0.8, knock: 160 },
+    ],
+    lvText: ['', 'Longer spray', 'Wider, more damage', 'Wider, faster', 'Full blast'],
+  },
+  alarm: {
+    name: 'Anti-Theft Alarm', icon: 'bolt',
+    desc: 'A jolt that jumps from shopper to shopper.',
+    lv: [
+      { dmg: 14, cd: 1.8, chains: 3 },
+      { dmg: 16, cd: 1.7, chains: 4 },
+      { dmg: 19, cd: 1.6, chains: 5 },
+      { dmg: 22, cd: 1.5, chains: 6 },
+      { dmg: 27, cd: 1.3, chains: 8 },
+    ],
+    lvText: ['', '+1 jump', '+1 jump, more damage', '+1 jump', '+2 jumps'],
+  },
+  chicken: {
+    name: 'Rotisserie Chicken', icon: 'chicken',
+    desc: 'Lobbed into the crowd. Explodes. Somehow.',
+    lv: [
+      { dmg: 34, cd: 2.3, count: 1, radius: 28 },
+      { dmg: 42, cd: 2.1, count: 1, radius: 32 },
+      { dmg: 50, cd: 2.0, count: 2, radius: 34 },
+      { dmg: 58, cd: 1.8, count: 2, radius: 38 },
+      { dmg: 72, cd: 1.6, count: 3, radius: 42 },
+    ],
+    lvText: ['', 'Bigger boom', '+1 chicken', 'Bigger boom, faster', '+1 chicken'],
   },
 };
 
@@ -112,6 +160,10 @@ export const EVOLUTIONS = {
     stats: { dmg: 26, count: 8, radius: 62, spin: 3.8 } },
   paSystem: { needs: 'nameTag', name: 'Store-Wide Announcement', desc: 'The whole store hears it.',
     stats: { dmg: 45, cd: 1.6, radius: 150, knock: 220 } },
+  giftCard: { needs: 'overtime', name: 'Black Card', desc: 'No limit. Literally.',
+    stats: { dmg: 42, cd: 0.8, count: 5, range: 160, speed: 270 } },
+  alarm: { needs: 'union', name: 'Lockdown', desc: 'Every door in the store just locked.',
+    stats: { dmg: 40, cd: 0.9, chains: 14 } },
   wetFloor: { needs: 'lanyard', name: 'Flood Zone', desc: 'Somebody left the hose on.',
     stats: { dmg: 20, cd: 1.3, count: 6, size: 40, dur: 5 } },
 };
@@ -122,6 +174,8 @@ export const ENEMIES = {
   cart:      { name: 'Cart Pusher', hp: 45, speed: 26, dmg: 12, xp: 3, r: 8, sprite: 'cartPusher', charge: true, knockResist: 0.6 },
   clipper:   { name: 'Coupon Clipper', hp: 16, speed: 30, dmg: 4, xp: 2, r: 6, sprite: 'clipper', ranged: true },
   requester: { name: 'Manager Requester', hp: 220, speed: 30, dmg: 15, xp: 25, r: 8, sprite: 'requester', elite: true, knockResist: 0.8 },
+  scalper:   { name: 'Scalper', hp: 14, speed: 66, dmg: 5, xp: 2, r: 5, sprite: 'scalper', ranged: true },
+  camper:    { name: 'Line Camper', hp: 90, speed: 16, dmg: 10, xp: 4, r: 9, sprite: 'camper', knockResist: 0.7, splits: 3 },
   boss:      { name: 'Regional Manager', hp: 6000, speed: 28, dmg: 25, xp: 0, r: 16, sprite: 'boss', boss: true, knockResist: 1 },
 };
 
@@ -138,6 +192,29 @@ export const WAVES = [
   { shopper: 1, walker: 4, clipper: 3, cart: 3 },
   { shopper: 1, walker: 3, clipper: 2, cart: 2 },
 ];
+
+export const MAPS = {
+  floor: {
+    name: 'Main Floor', desc: 'Groceries, home goods, and 400 people who woke up at 3 AM for a toaster.',
+    tiles: ['#d8d5cc', '#cfccc2'], stripe: '#e6c84a', bg: '#c9c6bd', waves: WAVES, boss: 'Regional Manager', bossHp: 1, hpMul: 1, speedMul: 1,
+  },
+  electronics: {
+    name: 'Electronics', desc: 'TVs, consoles, and the people who camped in the parking lot for them. Unlocks after your first full shift.',
+    tiles: ['#2b2f3a', '#252934'], stripe: '#3fd0ff', bg: '#1e2129', unlockWins: 1, boss: 'District Manager', bossHp: 1.5, hpMul: 1.5, speedMul: 1.1,
+    waves: [
+      { shopper: 2, walker: 1 },
+      { shopper: 2, walker: 2, scalper: 1 },
+      { shopper: 2, walker: 2, scalper: 1, camper: 1 },
+      { shopper: 2, walker: 3, scalper: 2, camper: 1 },
+      { shopper: 2, walker: 3, scalper: 2, camper: 1, cart: 1 },
+      { shopper: 1, walker: 3, scalper: 2, camper: 2, cart: 1 },
+      { shopper: 1, walker: 4, scalper: 2, camper: 2, cart: 2 },
+      { shopper: 1, walker: 4, scalper: 3, camper: 2, cart: 2 },
+      { shopper: 1, walker: 4, scalper: 3, camper: 3, cart: 2 },
+      { shopper: 1, walker: 3, scalper: 2, camper: 2, cart: 2 },
+    ],
+  },
+};
 
 export const CHARACTERS = {
   stocker: { name: 'Stocker', cost: 0, weapon: 'priceGun', desc: 'Starts with the Price Gun. Steady all-rounder.',
@@ -167,6 +244,9 @@ export const ACHIEVEMENTS = {
   EVOLVED: 'Promoted — evolve a weapon',
   FULL_STAFF: 'Full Staff — unlock every character',
   UNTOUCHABLE: 'Untouchable — survive a shift taking under 100 damage',
+  OVERTIME: 'Unpaid Overtime — last 5 minutes past 11:00 AM',
+  ELECTRONICS: 'Gadget Hound — survive a shift in Electronics',
+  FULL_ARSENAL: 'Stocked Shelves — hold 6 weapons at once',
 };
 
 export const ANNOUNCEMENTS = [
@@ -182,4 +262,8 @@ export const ANNOUNCEMENTS = [
   'A reminder that tackling is a form of shoplifting.',
   'Gift cards are not a love language. Please calm down.',
   'Lost child at the front. Not ours. Please come get him.',
+  'The 4K TV was 4 dollars. It was also a typo.',
+  'Please do not lick the display models.',
+  'Our return policy is: no.',
+  'Attention: the blender demo was not an invitation.',
 ];

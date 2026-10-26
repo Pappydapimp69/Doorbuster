@@ -55,6 +55,26 @@ for (let i = 0; i < runs; i++) {
     const r = __db.simulate(620); __db.save.meta = {}; return r;
   }, [chars[i % 4], 500 + i]));
 }
+// Electronics (second map) with a maxed save, and one overtime stretch after a win.
+const elec = [];
+for (let i = 0; i < Math.max(4, runs / 2); i++) {
+  elec.push(await page.evaluate(([c, s]) => {
+    __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 };
+    __db.start(c, s, 'electronics'); __db.setAutopilot(true);
+    const r = __db.simulate(620); __db.save.meta = {}; return r;
+  }, [chars[i % 4], 900 + i]));
+}
+console.log('electro ' + summary(elec) + ' | levels ' + elec.map((r) => r.level).join(','));
+const ot = await page.evaluate(() => {
+  __db.save.meta = { seniority: 5, insoles: 5, smooth: 5, scanner: 5, caffeine: 5, rerolls: 3, secondWind: 1 };
+  for (let s = 1; s < 40; s++) {
+    __db.start('cashier', 700 + s); __db.setAutopilot(true);
+    const r = __db.simulate(620);
+    if (r.t >= 600) { __db.overtime(); const o = __db.simulate(900); __db.save.meta = {}; return { seed: 700 + s, overtimeSurvived: Math.round(o.t - 600), state: o.state, level: o.level }; }
+  }
+  __db.save.meta = {}; return null;
+});
+console.log('overtime', JSON.stringify(ot));
 console.log('veteran ' + summary(vet) + ' | levels ' + vet.map((r) => r.level).join(','));
 const wins = results.filter((r) => r.t >= 600).length;
 console.log('fresh   ' + summary(results));

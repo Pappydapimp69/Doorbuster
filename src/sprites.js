@@ -123,6 +123,35 @@ const MAPS = {
     '...eee....eee...',
     '..kkkk....kkkk..',
   ],
+  scalper: [
+    '....kkkk....',
+    '...kkkkkk...',
+    '..kkssssk...',
+    '...seesee...',
+    '...ssssss...',
+    '....ssss....',
+    '..cccccccc..',
+    '.scccBBccs..',
+    '.sccBBBBcs..',
+    '..cccccccc..',
+    '...bbbbbb...',
+    '..bb....bb..',
+    '.bb......bb.',
+    '.kk......kk.',
+  ],
+  camper: [
+    '......oo........',
+    '.....oooo.......',
+    '....oooooo......',
+    '...oooooooo.....',
+    '..oooohhoooo....',
+    '.ooooskssoooo...',
+    'oooooossssoooo..',
+    'oooocccccccoooo.',
+    'oooocccccccoooo.',
+    'oooocccccccoooo.',
+    'ggggggggggggggg.',
+  ],
   cart: [
     'k.........',
     'kgggggggg.',
@@ -137,6 +166,7 @@ const MAPS = {
   coin: ['.yy.', 'yooy', 'yooy', '.yy.'],
   heart: ['R.R.', 'RRRR', 'RRRR', '.RR.'],
   box: ['oooooo', 'okkkko', 'oooooo', 'oyyyyo', 'oooooo'],
+  chicken: ['..oo..', '.oyyo.', 'oyyyyo', 'oyyyyo', '.oooo.', 'w....w'],
 };
 
 const SHIRTS = ['#4a90d9', '#9b59b6', '#e67e22', '#27ae60', '#c0392b', '#16a085', '#7f8c8d', '#d35400'];
@@ -174,15 +204,15 @@ export function buildSprites(characters) {
   for (const [id, ch] of Object.entries(characters)) {
     SPR['worker_' + id] = render(MAPS.worker, { v: ch.vest });
   }
-  for (const kind of ['shopper', 'walker', 'clipper', 'cartPusher']) {
+  for (const kind of ['shopper', 'walker', 'clipper', 'cartPusher', 'scalper', 'camper']) {
     SPR[kind] = [];
     for (let i = 0; i < SHIRTS.length; i++) {
       SPR[kind].push(render(MAPS[kind], { c: SHIRTS[i], h: HAIRS[i % HAIRS.length] }));
     }
   }
   SPR.requester = [render(MAPS.requester, {})];
-  SPR.boss = [render(MAPS.boss, {}, 2)];
-  for (const k of ['cart', 'receipt1', 'receipt2', 'receipt3', 'coin', 'heart', 'box']) SPR[k] = render(MAPS[k], {});
+  SPR.boss = [render(MAPS.boss, {}, 2), render(MAPS.boss, { e: '#3b1f4a', G: '#dddddd' }, 2)];
+  for (const k of ['cart', 'chicken', 'receipt1', 'receipt2', 'receipt3', 'coin', 'heart', 'box']) SPR[k] = render(MAPS[k], {});
   for (const k of Object.keys(SPR)) {
     if (Array.isArray(SPR[k])) SPR[k + '_flash'] = SPR[k].map(flash);
     else SPR[k + '_flash'] = flash(SPR[k]);
