@@ -1,0 +1,34 @@
+{
+  "name": "doorbuster",
+  "productName": "Doorbuster",
+  "version": "0.1.0",
+  "description": "A Black Friday survivors-like. Survive the 6-hour shift.",
+  "main": "electron/main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "web": "npx --yes http-server -c-1 -p 8080 .",
+    "playtest": "node test/playtest.mjs 12",
+    "shots": "node test/shots.mjs",
+    "dist:win": "electron-builder --win dir",
+    "dist:linux": "electron-builder --linux dir",
+    "dist:mac": "electron-builder --mac dir"
+  },
+  "devDependencies": {
+    "electron": "33.2.0",
+    "electron-builder": "25.1.8",
+    "playwright": "1.48.2"
+  },
+  "dependencies": {
+    "steamworks.js": "0.4.0"
+  },
+  "build": {
+    "appId": "com.doorbuster.game",
+    "files": ["index.html", "style.css", "src/**", "electron/**", "steam_appid.txt"],
+    "extraFiles": ["steam_appid.txt"],
+    "asarUnpack": ["node_modules/steamworks.js/**"],
+    "win": { "target": "dir" },
+    "linux": { "target": "dir", "category": "Game" },
+    "mac": { "target": "dir", "category": "public.app-category.games" }
+  }
+}
