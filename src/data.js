@@ -286,10 +286,11 @@ export const RIOT = {
   grabCap: 0.3,
   lureR: 120,                // plain shoppers within this of a stocked shelf go for it
   restockR: 22, restockRate: 0.75,
-  fillPerEmpty: 4,           // riot meter per second per empty shelf on screen (one empty shelf: 25 s to riot)
+  fillPerEmpty: 2.5,         // riot meter per second per empty shelf on screen (one empty shelf: 40 s to riot)
   calmRate: 12,              // meter drain per second with no empty shelf on screen
-  endAt: 50,                 // a riot ends when the meter falls below this
-  speed: 1.3, spawn: 1.5, dmg: 1.2, tipMul: 2, // riot pay: tips count double while it lasts
+  duration: 12,              // a riot lasts this long, then the meter starts from zero
+  grace: 60,                 // no riot in the first minute of a shift
+  speed: 1.15, spawn: 1.3, dmg: 1, tipMul: 2, // riot pay: tips count double while it lasts
   rewardTips: 2, rewardXp: 3,
 };
 

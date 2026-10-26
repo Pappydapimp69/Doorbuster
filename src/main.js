@@ -294,8 +294,11 @@ function updateEnemies(dt) {
     let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1) * (G.rioting ? RIOT.speed : 1);
     let mx = dx, my = dy;
     // Plain shoppers go for nearby stock when the player isn't right on them.
-    if (riotOn() && e.type === 'shopper' && d > 60) {
-      if (!e.shelf || e.shelf.stock <= 0.02 || (e.t % 2 < dt)) {
+    // Half the plain shoppers (and every kid in Toys) go for nearby stock.
+    if (riotOn() && ((e.type === 'shopper' && e.var % 2 === 0) || e.type === 'kid') && d > 80) {
+      if (e.shelf && e.shelf.stock <= 0.02) e.shelf = null;
+      if (!(e.scanT > e.t)) { // look for stock about once a second, not every frame
+        e.scanT = e.t + 1 + rng() * 0.5;
         e.shelf = null;
         for (const sh of shelvesNear(e.x, e.y, RIOT.lureR)) if (sh.stock > 0.02 && (!e.shelf || dist2(sh, e) < dist2(e.shelf, e))) e.shelf = sh;
       }
@@ -1173,12 +1176,18 @@ function updateShelves(dt) {
     const onScreen = Math.abs(sh.x - p.x) < W / 2 && Math.abs(sh.y - p.y) < H / 2;
     if (onScreen && sh.stock <= 0.02) empties++;
   }
-  G.riot = clamp(G.riot + (empties ? empties * RIOT.fillPerEmpty : -RIOT.calmRate) * dt, 0, 100);
-  if (!G.rioting && G.riot >= 100) {
-    G.rioting = true; G.riots++;
-    announce(T('ui.riot'), true); sfx('boss'); G.shake = Math.max(G.shake, 0.6);
-  } else if (G.rioting && G.riot < RIOT.endAt) {
-    G.rioting = false; announce(T('ui.riotOver'));
+  // A riot is an event: it runs its course, then the meter starts over.
+  if (G.rioting) {
+    G.riotTime = (G.riotTime || 0) + dt;
+    G.riotLeft -= dt;
+    G.riot = 100 * Math.max(0, G.riotLeft) / RIOT.duration;
+    if (G.riotLeft <= 0) { G.rioting = false; G.riot = 0; announce(T('ui.riotOver')); }
+  } else {
+    G.riot = clamp(G.riot + (empties ? empties * RIOT.fillPerEmpty : -RIOT.calmRate) * dt, 0, 100);
+    if (G.riot >= 100 && G.t > RIOT.grace) {
+      G.rioting = true; G.riots++; G.riotLeft = RIOT.duration;
+      announce(T('ui.riot'), true); sfx('boss'); G.shake = Math.max(G.shake, 0.6);
+    }
   }
   if (empties && !save.shelfTipSeen) {
     save.shelfTipSeen = true; writeSave(save);
@@ -1696,6 +1705,6 @@ window.__db = {
       update(STEP);
     }
     return { t: G.t, state, level: G.level, kills: G.kills, hp: G.player.hp, enemies: G.enemies.length,
-      weapons: G.weapons.map((w) => w.id + ':' + (w.evolved ? 'E' : w.lv)), passives: { ...G.passives }, dmgTaken: G.dmgTaken, dealt: G.dmgDealt, restocks: G.restocks, riots: G.riots, powerups: G.powerups, boss: G.bossDead ? 'dead' : G.boss ? Math.round(G.boss.hp) : '-', dmgBy: G.dmgBy, nearby: nearby(G.player.x, G.player.y, 40, []).length };
+      weapons: G.weapons.map((w) => w.id + ':' + (w.evolved ? 'E' : w.lv)), passives: { ...G.passives }, dmgTaken: G.dmgTaken, dealt: G.dmgDealt, restocks: G.restocks, riots: G.riots, riotTime: Math.round(G.riotTime || 0), powerups: G.powerups, boss: G.bossDead ? 'dead' : G.boss ? Math.round(G.boss.hp) : '-', dmgBy: G.dmgBy, nearby: nearby(G.player.x, G.player.y, 40, []).length };
   },
 };
