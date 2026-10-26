@@ -3,8 +3,6 @@ name: pages
 
 on:
   push:
-    # The repo's default branch is the session branch (it was pushed first);
-    # Pages only deploys from the default branch.
     branches: [main, ccr-1c80d350-gl0ii0]
   workflow_dispatch:
 
@@ -15,10 +13,12 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    # Pages only accepts deployments from the repo's default branch.
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     environment:
       name: github-pages
