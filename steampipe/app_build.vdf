@@ -1,0 +1,14 @@
+"AppBuild"
+{
+	"AppID"	"APP_ID"
+	"Desc"	"Doorbuster build"
+	"ContentRoot"	"../dist/"
+	"BuildOutput"	"../dist/steampipe-output/"
+	"SetLive"	""
+	"Depots"
+	{
+		"DEPOT_WIN"	"depot_windows.vdf"
+		"DEPOT_MAC"	"depot_mac.vdf"
+		"DEPOT_LINUX"	"depot_linux.vdf"
+	}
+}
