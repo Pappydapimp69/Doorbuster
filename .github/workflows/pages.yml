@@ -3,7 +3,9 @@ name: pages
 
 on:
   push:
-    branches: [main]
+    # The repo's default branch is the session branch (it was pushed first);
+    # Pages only deploys from the default branch.
+    branches: [main, ccr-1c80d350-gl0ii0]
   workflow_dispatch:
 
 permissions:
