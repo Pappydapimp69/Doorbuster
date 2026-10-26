@@ -65,6 +65,6 @@ All tuning is in `src/data.js`.
 ## Before launch (what's missing)
 
 - Real pixel art for capsule/trailer (in-game sprites are placeholder-good, not store-good)
-- Native-speaker review of the 5 machine-written translations (zh, ru, es, pt-BR, de); add Japanese, French, Korean
+- Native-speaker review of the 5 machine-written translations (zh, ru, es, pt-BR, de)
 - Real music track; the synthesized muzak is a placeholder
 - Playtests with humans: the bot sets the floor, not the feel
