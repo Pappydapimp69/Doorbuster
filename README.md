@@ -57,12 +57,15 @@ All tuning is in `src/data.js`.
    gameplay in the first 3 seconds.
 3. **Demo for Steam Next Fest.** Ship the first 5 minutes of a shift as a
    free demo. Next Fest is the biggest free wishlist spike available.
-4. **Price**: $3.99–$4.99. That's where this genre sells (Vampire Survivors
-   launched at $2.99, Brotato at $4.99).
+4. **Price**: $7.99, or $9.99 once a mechanical hook ships. The $5–9.99 band
+   did best in 2024–25 and the 2025–26 breakouts sit at $9.99–14.99; see
+   `research/steam-market-2026.md`.
 5. **Build**: `npm run dist:win` / `dist:linux` / `dist:mac`, then upload
    with SteamPipe. Mark Steam Deck compatibility after testing on one.
 
 ## Before launch (what's missing)
+
+- A mechanical hook, not just a theme: every recent breakout changed a core mechanic (`research/steam-market-2026.md` §2, §5)
 
 - Real pixel art for capsule/trailer (in-game sprites are placeholder-good, not store-good)
 - Native-speaker review of the 5 machine-written translations (zh, ru, es, pt-BR, de)

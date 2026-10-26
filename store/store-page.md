@@ -57,8 +57,7 @@ unless the music is replaced), Family Friendly (check rating first)
 
 ## Pricing
 
-$4.99 (launch discount 20% → $3.99). Regional pricing: accept Steam's
-suggested tiers.
+$7.99 at launch ($9.99 once a mechanical hook ships). Launch discount 10–15%. Regional pricing: accept Steam's suggested tiers. Reasoning and sources: `research/steam-market-2026.md` §3.
 
 ## Content descriptors / rating notes
 
