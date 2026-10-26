@@ -27,6 +27,8 @@ export default {
     newStock: 'Neu im Lager: {name}', lockedH: 'Gesperrt', unknownEvo: '??? — entwickle sie, um es herauszufinden',
     recBest: 'Längste Schicht', recWins: 'Überstandene Schichten', recKills: 'Bediente Kunden', recBoss: 'Abgewimmelte Manager', recOvertime: 'Längste Überstunden', recLevel: 'Höchste Stufe',
     unlock: { bestTime: 'Überstehe {n} Minuten', totalKills: 'Bediene insgesamt {n} Kunden', bestLevel: 'Erreiche Stufe {n}', bossKills: 'Besiege einen Manager' },
+    tutorial: 'Bewege dich mit WASD, Pfeilen oder Stick. Deine Waffen feuern von selbst. Sammle Kassenbons zum Aufsteigen.',
+    fullscreen: 'Vollbild umschalten',
     clock24: true,
   },
   weapons: {

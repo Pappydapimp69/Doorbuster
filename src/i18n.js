@@ -36,6 +36,8 @@ const UI = {
   newStock: 'New in stock: {name}', lockedH: 'Locked', unknownEvo: '??? — evolve it to find out',
   recBest: 'Longest shift', recWins: 'Shifts survived', recKills: 'Shoppers handled', recBoss: 'Managers dismissed', recOvertime: 'Longest overtime', recLevel: 'Highest level',
   unlock: { bestTime: 'Survive {n} minutes', totalKills: 'Handle {n} shoppers in total', bestLevel: 'Reach level {n}', bossKills: 'Defeat a manager' },
+  tutorial: 'Move with WASD, arrows or a stick. Your weapons fire on their own. Grab receipts to level up.',
+  fullscreen: 'Toggle fullscreen',
   clock24: false,
 };
 

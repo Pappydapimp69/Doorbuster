@@ -27,6 +27,8 @@ export default {
     newStock: 'Nuevo en stock: {name}', lockedH: 'Bloqueado', unknownEvo: '??? — evoluciónala para descubrirlo',
     recBest: 'Turno más largo', recWins: 'Turnos superados', recKills: 'Clientes atendidos', recBoss: 'Gerentes despachados', recOvertime: 'Horas extra más largas', recLevel: 'Nivel más alto',
     unlock: { bestTime: 'Aguanta {n} minutos', totalKills: 'Atiende {n} clientes en total', bestLevel: 'Llega al nivel {n}', bossKills: 'Derrota a un gerente' },
+    tutorial: 'Muévete con WASD, flechas o stick. Tus armas disparan solas. Recoge tickets para subir de nivel.',
+    fullscreen: 'Pantalla completa',
     clock24: true,
   },
   weapons: {

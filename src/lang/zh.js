@@ -27,6 +27,8 @@ export default {
     newStock: '新货上架：{name}', lockedH: '未解锁', unknownEvo: '？？？——进化后揭晓',
     recBest: '最长班次', recWins: '坚持下来的班次', recKills: '处理过的顾客', recBoss: '打发走的经理', recOvertime: '最长加班', recLevel: '最高等级',
     unlock: { bestTime: '坚持 {n} 分钟', totalKills: '累计处理 {n} 名顾客', bestLevel: '达到 {n} 级', bossKills: '击败一位经理' },
+    tutorial: '用 WASD、方向键或摇杆移动。武器会自动攻击。捡起收据来升级。',
+    fullscreen: '切换全屏',
     clock24: true,
   },
   weapons: {

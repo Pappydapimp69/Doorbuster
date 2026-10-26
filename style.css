@@ -78,3 +78,6 @@ h3 { margin: 6px 0 0; font-size: 16px; color: var(--yellow); letter-spacing: 1px
 #screen { justify-content: flex-start; padding-top: max(16px, 4vh); }
 #screen > :first-child { margin-top: auto; }
 #screen > :last-child { margin-bottom: auto; }
+#tip { position: absolute; bottom: 14%; left: 50%; transform: translateX(-50%); max-width: 80%; padding: 10px 16px; background: rgba(0,0,0,.75); border: 2px solid var(--yellow); border-radius: 8px; font-weight: 700; text-align: center; opacity: 0; transition: opacity .4s; pointer-events: none; }
+#tip.show { opacity: 1; }
+.combo { font-size: calc(18px + 14px * var(--c)); color: hsl(calc(50 - 50 * var(--c)), 95%, 60%); font-weight: 900; }

@@ -28,6 +28,10 @@ ipcMain.handle('steam:store', () => {
 ipcMain.on('steam:language', (e) => {
   try { e.returnValue = steam ? steam.apps.currentGameLanguage() : null; } catch { e.returnValue = null; }
 });
+ipcMain.handle('win:fullscreen', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  win.setFullScreen(!win.isFullScreen());
+});
 ipcMain.on('steam:available', (e) => { e.returnValue = !!steam; });
 
 function createWindow() {

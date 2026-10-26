@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('desktop', {
   quit: () => window.close(),
   demo,
   openStore: () => ipcRenderer.invoke('steam:store'),
+  toggleFullscreen: () => ipcRenderer.invoke('win:fullscreen'),
 });

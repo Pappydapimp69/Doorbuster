@@ -88,6 +88,7 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => { keys.clear(); if (state === 'play') pause(); });
+addEventListener('gamepaddisconnected', () => { if (state === 'play') pause(); });
 addEventListener('pointerdown', () => ensureAudio());
 
 // Browsers only allow audio after a gesture; the menu theme starts on the first one.
@@ -371,10 +372,12 @@ function bossAI(e, dt, dx, dy, d) {
 
 function hurtPlayer(raw, src = '?') {
   const p = G.player;
+  if (G.dying) return;
   G.dmgBy[src] = (G.dmgBy[src] || 0) + raw;
   const dmg = Math.max(1, Math.round(raw - G.stats.armor));
   p.hp -= dmg; p.inv = 0.6; G.dmgTaken += dmg;
   G.shake = Math.max(G.shake, 0.35);
+  G.hurtFlash = 1;
   sfx('hurt');
   G.texts.push({ x: p.x, y: p.y - 14, v: dmg, life: 0.7, color: '#ff5a5a' });
   if (p.hp <= 0) {
@@ -382,7 +385,7 @@ function hurtPlayer(raw, src = '?') {
       G.revives--; p.hp = G.stats.maxHp * 0.5; p.inv = 2;
       announce(T('ui.secondWind'), true);
       for (const e of G.enemies) if (!e.def.boss && dist2(e, p) < 120 * 120) damageEnemy(e, 9999, 0, 0, 0);
-    } else endRun(false);
+    } else if (!G.dying) { G.dying = 1.2; G.player.hp = 0; sfx('hurt'); G.shake = 1; }
   }
 }
 
@@ -850,6 +853,7 @@ function updatePlayer(dt) {
   const pad = G.pad || { x: 0, y: 0 };
   if (pad.x || pad.y) { mx = pad.x; my = pad.y; }
   if (autopilot) [mx, my] = autoMove();
+  if (G.dying) { mx = 0; my = 0; }
   const m = Math.hypot(mx, my);
   if (m > 1) { mx /= m; my /= m; }
   p.moving = m > 0.1;
@@ -917,6 +921,13 @@ function toast(text) {
 
 function update(dt) {
   if (G.hitstop > 0) { G.hitstop -= dt; return; }
+  // Trampled: the world keeps moving in slow motion for a beat before the results.
+  if (G.dying) {
+    G.dying -= dt;
+    if (G.dying <= 0) { endRun(false); return; }
+    dt *= 0.25;
+  }
+  G.hurtFlash = Math.max(0, (G.hurtFlash || 0) - dt * 3);
   G.t += dt;
   G.comboT -= dt; if (G.comboT <= 0) G.combo = 0;
   G.pad = pollPadCached;
@@ -1055,6 +1066,12 @@ function render() {
       cx.fillStyle = '#e04848'; cx.beginPath(); cx.arc(ex, ey, 4, 0, Math.PI * 2); cx.fill();
     }
   }
+  if (G.hurtFlash > 0) {
+    const g = cx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.6);
+    g.addColorStop(0, 'rgba(255,0,0,0)'); g.addColorStop(1, `rgba(255,30,30,${0.45 * G.hurtFlash})`);
+    cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  }
+  if (G.dying) { cx.fillStyle = `rgba(20,10,20,${0.5 * (1 - G.dying / 1.2)})`; cx.fillRect(0, 0, W, H); }
   // Low HP vignette.
   if (p.hp / G.stats.maxHp < 0.3) {
     cx.fillStyle = `rgba(200,0,0,${0.12 + Math.sin(G.t * 6) * 0.05})`;
@@ -1109,7 +1126,7 @@ function renderHud() {
   const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('');
   const html = `<div class="xpbar"><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>${T('ui.lv', { n: G.level })}</span></div>
     <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${T(G.overtime ? 'ui.overtimeHud' : G.t < BOSS_AT ? 'ui.shiftEnds' : 'ui.holdOn')}</small></div>
-    <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}</div></div><div class="slots">${ps}</div>`;
+    <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}${G.combo >= 25 ? `<div class="combo" style="--c:${Math.min(1, G.combo / 300)}">×${Math.floor(G.combo / 5) * 5}</div>` : ''}</div></div><div class="slots">${ps}</div>`;
   if (html !== hudCache) { ui.hud.innerHTML = html; hudCache = html; }
 }
 
@@ -1191,6 +1208,7 @@ const ACTIONS = {
     audio.sfx = save.settings.sfx; audio.music = save.settings.music; setVolumes(); writeSave(save); sfx('ui');
     showSettings(show.back, arg);
   },
+  fullscreen: () => window.desktop?.toggleFullscreen?.(),
   lang: () => {
     const codes = Object.keys(LANGS);
     save.settings.lang = codes[(codes.indexOf(lang()) + 1) % codes.length];
@@ -1269,6 +1287,7 @@ function showSettings(back = showMenu, focusArg) {
   show(`<h2>${T('ui.settings')}</h2><div class="menu wide">
     <div class="setrow">${T('ui.sfx')} <button class="btn sm" data-act="vol" data-arg="sfx:-0.1">−</button><code>${bar(s.sfx)}</code><button class="btn sm" data-act="vol" data-arg="sfx:0.1">+</button></div>
     <div class="setrow">${T('ui.music')} <button class="btn sm" data-act="vol" data-arg="music:-0.1">−</button><code>${bar(s.music)}</code><button class="btn sm" data-act="vol" data-arg="music:0.1">+</button></div>
+    ${window.desktop?.toggleFullscreen ? `<button class="btn" data-act="fullscreen">${T('ui.fullscreen')}</button>` : ''}
     <button class="btn" data-act="lang" data-arg="cycle">${T('ui.language')}: ${LANGS[lang()]}</button>
     <button class="btn" data-act="toggle" data-arg="shake">${T('ui.shake')}: ${onoff(s.shake)}</button>
     <button class="btn" data-act="toggle" data-arg="damageNumbers">${T('ui.damageNumbers')}: ${onoff(s.damageNumbers)}</button>
@@ -1289,6 +1308,11 @@ function resume() { state = 'play'; show(''); }
 function openLevelUp() {
   state = 'levelup';
   sfx('level');
+  const p = G.player;
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    G.parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90, life: 0.5, c: i % 2 ? '#7fd8ff' : '#f5d142', float: true });
+  }
   G.choices = buildChoices();
   renderLevelUp();
 }
@@ -1310,6 +1334,12 @@ function startRun(charId, seed, map) {
   show('');
   startMusic('shift');
   announce(T('ui.doorsOpen'), true);
+  if (!save.tutorialSeen) {
+    const tip = $('#tip');
+    tip.textContent = T('ui.tutorial'); tip.className = 'show';
+    setTimeout(() => (tip.className = ''), 9000);
+    save.tutorialSeen = true; writeSave(save);
+  }
 }
 
 function endRun(win) {
