@@ -1,6 +1,6 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY, RIOT,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, EARNED, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY, RIOT,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes, currentSong } from './audio.js';
@@ -128,15 +128,22 @@ function metaLv(id) { return save.meta[id] || 0; }
 
 function computeStats() {
   const ch = CHARACTERS[G.char];
-  const s = { maxHp: 100, speed: 72, magnet: 40, armor: 0, cooldown: 0, xp: 1, greed: 1, area: 1 };
+  const s = { maxHp: 100, speed: 72, magnet: 40, armor: 0, cooldown: 0, xp: 1, greed: 1, area: 1,
+    dmg: 1, eliteDmg: 1, regen: 0, restock: 1, riotFill: 0, riotTips: 0, tagLuck: 1, buffDur: 1, heal: 1, coin: 1, invuln: 0, rerolls: 0, revives: 0 };
   const m = ch.mods;
-  s.maxHp += (m.maxHp || 0) + metaLv('seniority') * META.seniority.per;
+  s.maxHp += (m.maxHp || 0);
   s.armor += (m.armor || 0);
-  let spd = 1 + (m.speed || 0) + metaLv('insoles') * META.insoles.per;
+  let spd = 1 + (m.speed || 0);
   let mag = 1 + (m.magnet || 0);
-  let cd = (m.cooldown || 0) + metaLv('caffeine') * META.caffeine.per;
-  let xp = 1 + (m.xp || 0) + metaLv('scanner') * META.scanner.per;
-  s.greed += metaLv('smooth') * META.smooth.per;
+  let cd = (m.cooldown || 0);
+  let xp = 1 + (m.xp || 0);
+  // Every Break Room perk, bought (by level) or earned, adds per x level to its stat.
+  const add = (stat, v) => {
+    if (stat === 'speed') spd += v; else if (stat === 'magnet') mag += v; else if (stat === 'cooldown') cd += v; else if (stat === 'xp') xp += v;
+    else s[stat] += v;
+  };
+  for (const [id, p] of Object.entries(META)) if (metaLv(id)) add(p.stat, p.per * metaLv(id));
+  for (const [id, p] of Object.entries(EARNED)) if (perkEarned(id)) add(p.stat, p.per);
   for (const [id, lv] of Object.entries(G.passives)) {
     const p = PASSIVES[id];
     if (p.stat === 'speed') spd += p.per * lv;
@@ -165,11 +172,12 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     player: { x: 0, y: 0, hp: 100, inv: 0, face: 1, fx: 1, fy: 0, anim: 0, moving: false },
     enemies: [], projs: [], eprojs: [], lobs: [], gems: [], drops: [], puddles: [], fx: [], texts: [], parts: [],
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
-    rerolls: metaLv('rerolls'), revives: metaLv('secondWind'), banished: new Set(),
+    rerolls: 0, revives: 0, banished: new Set(),
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
     nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
   };
   G.stats = computeStats();
+  G.rerolls = G.stats.rerolls; G.revives = G.stats.revives;
   G.player.hp = G.stats.maxHp;
   addWeapon(CHARACTERS[charId].weapon);
   // Opening crowd at the doors.
@@ -392,7 +400,7 @@ function hurtPlayer(raw, src = '?') {
   if (G.dying) return;
   G.dmgBy[src] = (G.dmgBy[src] || 0) + raw;
   const dmg = Math.max(1, Math.round(raw - G.stats.armor));
-  p.hp -= dmg; p.inv = 0.6; G.dmgTaken += dmg;
+  p.hp -= dmg; p.inv = 0.6 + G.stats.invuln; G.dmgTaken += dmg;
   G.shake = Math.max(G.shake, 0.35);
   G.hurtFlash = 1;
   sfx('hurt');
@@ -410,6 +418,7 @@ let curSrc = '?';
 function damageEnemy(e, dmg, kx, ky, knock) {
   if (e.dead) return;
   if (skill() === 'elite' && (e.def.elite || e.def.boss)) dmg *= 1.6;
+  if (curSrc !== 'powerup') dmg *= G.stats.dmg * (e.def.elite || e.def.boss ? G.stats.eliteDmg : 1);
   if (G.buffs.deal && curSrc !== 'powerup') dmg *= 2;
   G.dmgDealt[curSrc] = (G.dmgDealt[curSrc] || 0) + Math.min(dmg, Math.max(0, e.hp));
   e.hp -= dmg;
@@ -436,7 +445,7 @@ function killEnemy(e) {
   if (e.def.splits) for (let i = 0; i < e.def.splits; i++) {
     const s = spawnEnemy('shopper', 0, 0); s.x = e.x + rand(-8, 8); s.y = e.y + rand(-8, 8);
   }
-  if (rng() < 0.012 * G.stats.greed) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: G.rioting ? RIOT.tipMul : 1 });
+  if (rng() < 0.012 * G.stats.greed * G.stats.coin) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: G.rioting ? RIOT.tipMul + G.stats.riotTips : 1 });
   if (rng() < 0.006 && G.drops.filter((d) => d.kind === 'heart').length < 6) G.drops.push({ x: e.x, y: e.y, kind: 'heart' });
   if (e.def.elite) {
     G.elites = (G.elites || 0) + 1;
@@ -963,6 +972,7 @@ function update(dt) {
   G.comboT -= dt; if (G.comboT <= 0) G.combo = 0;
   G.pad = pollPadCached;
   for (const k in G.buffs) { G.buffs[k] -= dt; if (G.buffs[k] <= 0) delete G.buffs[k]; }
+  if (G.stats.regen && !G.dying) G.player.hp = Math.min(G.stats.maxHp, G.player.hp + G.stats.regen * dt);
   updatePlayer(dt);
   checkTags();
   updateShelves(dt);
@@ -1177,7 +1187,7 @@ function updateShelves(dt) {
     // Restock: stand still right next to it.
     sh.fill = 0;
     if (!p.moving && !G.dying && sh.stock < 1 && dist2(sh, p) < RIOT.restockR * RIOT.restockR) {
-      sh.stock = Math.min(1, sh.stock + RIOT.restockRate * (skill() === 'restock' ? 2 : 1) * dt);
+      sh.stock = Math.min(1, sh.stock + RIOT.restockRate * G.stats.restock * (skill() === 'restock' ? 2 : 1) * dt);
       sh.fill = 1;
       if (sh.stock >= 1 && sh.low) {
         sh.low = false; G.restocks++;
@@ -1197,7 +1207,7 @@ function updateShelves(dt) {
     G.riot = 100 * Math.max(0, G.riotLeft) / RIOT.duration;
     if (G.riotLeft <= 0) { G.rioting = false; G.riot = 0; announce(T('ui.riotOver')); }
   } else {
-    G.riot = clamp(G.riot + (empties ? empties * RIOT.fillPerEmpty : -RIOT.calmRate) * dt, 0, 100);
+    G.riot = clamp(G.riot + (empties ? empties * RIOT.fillPerEmpty * Math.max(0.3, 1 - G.stats.riotFill) : -RIOT.calmRate) * dt, 0, 100);
     if (G.riot >= 100 && G.t > RIOT.grace) {
       G.rioting = true; G.riots++; G.riotLeft = RIOT.duration;
       announce(T('ui.riot'), true); sfx('boss'); G.shake = Math.max(G.shake, 0.6);
@@ -1240,7 +1250,7 @@ const tileHash = (i, j, salt = 0) => (((i * 374761393) ^ (j * 668265263) ^ (salt
 // A sale tag sits on tile (i, j) if the hash says so and nobody took it yet.
 function tagAt(i, j) {
   if (Math.abs(i) + Math.abs(j) < 4) return false; // not under the player at the start
-  return tileHash(i, j, 7) < POWERUP_DENSITY && !G.usedTags.has(i + ',' + j);
+  return tileHash(i, j, 7) < POWERUP_DENSITY * G.stats.tagLuck && !G.usedTags.has(i + ',' + j);
 }
 // Coffee spills (the brown floor stains) slow shoppers who walk through them.
 function onSpill(x, y) {
@@ -1271,7 +1281,7 @@ function checkTags() {
 function applyPowerup(pu, x, y) {
   G.powerups++;
   const p = G.player;
-  if (pu.dur) G.buffs[pu.id] = pu.dur;
+  if (pu.dur) G.buffs[pu.id] = pu.dur * G.stats.buffDur;
   if (pu.id === 'clearance') for (const g of G.gems) if (Math.abs(g.x - p.x) < W / 2 && Math.abs(g.y - p.y) < H / 2) g.pull = true;
   if (pu.id === 'sample') p.hp = Math.min(G.stats.maxHp, p.hp + healAmt(30));
   if (pu.id === 'evacuate') {
@@ -1487,11 +1497,17 @@ function showInventory() {
 }
 
 const skill = () => CHARACTERS[G.char].skill;
-const healAmt = (n) => (skill() === 'heal' ? n * 2 : n);
+const healAmt = (n) => n * G.stats.heal * (skill() === 'heal' ? 2 : 1);
 
 // Staff unlock by lifetime performance. Each stat only ever goes up.
+function perkEarned(id) { const c = EARNED[id].cond; return staffStat(c.stat) >= c.need; }
+
 function staffStat(stat) {
   if (stat === 'receipts') return save.receiptsGot || 0;
+  if (stat.startsWith('win_')) return (save.stats.mapWins || {})[stat.slice(4)] ? 1 : 0;
+  if (stat === 'evos') return Object.keys(save.evoSeen || {}).length;
+  if (stat === 'staff') return Object.keys(save.unlocked || {}).filter((k) => CHARACTERS[k]).length;
+  if (stat === 'achievements') return Object.keys(save.achievements || {}).length;
   return save.stats[stat] || 0;
 }
 function staffEarned(id) { const e = CHARACTERS[id].earn; return !e || staffStat(e.stat) >= e.need; }
@@ -1503,7 +1519,12 @@ function showShop(focusId) {
       return `<button class="btn card" data-act="buy" data-arg="${id}" ${!maxed && save.tips < cost ? 'data-poor' : ''}>
         <b>${T(`meta.${id}.name`)}</b><span>${T(`meta.${id}.desc`)}</span><em>${'●'.repeat(lv)}${'○'.repeat(m.max - lv)}</em>
         <i>${maxed ? T('ui.maxed') : '💰 ' + cost}</i></button>`;
-    }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
+    }).join('')}</div>
+    <h3>Earned by playing · ${Object.keys(EARNED).filter(perkEarned).length}/${Object.keys(EARNED).length}</h3>
+    <div class="invgrid">${Object.entries(EARNED).map(([id, e]) => perkEarned(id)
+      ? `<div class="inv"><span class="ic">✅</span><b>${e.name}</b><span>${e.desc}</span></div>`
+      : `<div class="inv locked"><span class="ic">🔒</span><b>${e.name}</b><span>${e.cond.text} (${Math.min(staffStat(e.cond.stat), e.cond.need)}/${e.cond.need}) → ${e.desc}</span></div>`).join('')}</div>
+    <button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
   refocus(focusId && `[data-arg="${focusId}"]`);
 }
 
@@ -1599,6 +1620,7 @@ function endRun(win) {
     save.stats.bestTime = Math.max(save.stats.bestTime, survived);
     save.stats.bestLevel = Math.max(save.stats.bestLevel || 0, G.level);
   }
+  const earnedBefore = Object.keys(EARNED).filter(perkEarned);
   checkUnlocks();
   const total = G.tipsRun + bonus;
   save.tips += total;
@@ -1615,6 +1637,7 @@ function endRun(win) {
     if (G.dmgTaken < 100) achieve('UNTOUCHABLE');
   }
   writeSave(save);
+  for (const id of Object.keys(EARNED)) if (perkEarned(id) && !earnedBefore.includes(id)) toast(`⭐ Perk earned: ${EARNED[id].name} (${EARNED[id].desc})`);
   const mm = Math.floor(survived / 60), ss = String(survived % 60).padStart(2, '0');
   const title = T(win ? 'ui.shiftComplete' : G.overtime ? 'ui.overtimeOver' : 'ui.trampled');
   const sub = win ? T('ui.subWin')

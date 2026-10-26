@@ -263,15 +263,67 @@ export const CHARACTERS = {
     desc: 'Rotisserie Chicken. +30 HP; every heal is doubled.', vest: '#f3f1ea', mods: { maxHp: 30 }, skill: 'heal' },
 };
 
+// Break Room, part 1: 25 perks bought with tips (levels, rising cost).
+// stat names are read by computeStats(); 'per' is added once per level.
+const costs = (base, max) => Array.from({ length: max }, (_, i) => Math.round(base * (1 + i) * (1 + i * 0.2)));
 export const META = {
-  seniority: { name: 'Seniority', desc: '+10 max HP', max: 5, cost: [60, 120, 200, 300, 440], stat: 'maxHp', per: 10 },
-  insoles:   { name: 'Gel Insoles', desc: '+5% move speed', max: 5, cost: [80, 160, 260, 380, 520], stat: 'speed', per: 0.05 },
-  smooth:    { name: 'Smooth Talker', desc: '+10% tips', max: 5, cost: [80, 160, 260, 380, 520], stat: 'greed', per: 0.10 },
-  scanner:   { name: 'Quick Scan', desc: '+5% XP', max: 5, cost: [100, 200, 320, 460, 640], stat: 'xp', per: 0.05 },
-  caffeine:  { name: 'Caffeine', desc: '-3% cooldowns', max: 5, cost: [120, 240, 380, 540, 720], stat: 'cooldown', per: 0.03 },
-  rerolls:   { name: 'Price Check', desc: '+1 reroll per run', max: 3, cost: [100, 240, 440], stat: 'rerolls', per: 1 },
-  secondWind:{ name: 'Second Wind', desc: 'Revive once per run', max: 1, cost: [800], stat: 'revives', per: 1 },
+  seniority:  { name: 'Seniority', desc: '+10 max HP', max: 5, cost: costs(60, 5), stat: 'maxHp', per: 10 },
+  insoles:    { name: 'Gel Insoles', desc: '+5% move speed', max: 5, cost: costs(80, 5), stat: 'speed', per: 0.05 },
+  smooth:     { name: 'Smooth Talker', desc: '+10% tips', max: 5, cost: costs(80, 5), stat: 'greed', per: 0.10 },
+  scanner:    { name: 'Quick Scan', desc: '+5% XP', max: 5, cost: costs(100, 5), stat: 'xp', per: 0.05 },
+  caffeine:   { name: 'Caffeine', desc: '-3% cooldowns', max: 5, cost: costs(120, 5), stat: 'cooldown', per: 0.03 },
+  rerolls:    { name: 'Price Check', desc: '+1 reroll per run', max: 3, cost: [100, 240, 440], stat: 'rerolls', per: 1 },
+  secondWind: { name: 'Second Wind', desc: 'Revive once per run', max: 1, cost: [800], stat: 'revives', per: 1 },
+  lifting:    { name: 'Box Lifting', desc: '+4% damage', max: 5, cost: costs(110, 5), stat: 'dmg', per: 0.04 },
+  vest:       { name: 'Safety Vest', desc: '+1 armor', max: 3, cost: costs(200, 3), stat: 'armor', per: 1 },
+  vitamins:   { name: 'Vitamins', desc: 'Regenerate 0.1 HP/s', max: 5, cost: costs(120, 5), stat: 'regen', per: 0.1 },
+  stocktrain: { name: 'Stock Training', desc: '+15% restock speed', max: 5, cost: costs(70, 5), stat: 'restock', per: 0.15 },
+  crowd:      { name: 'Crowd Control', desc: 'Riot meter fills 8% slower', max: 5, cost: costs(90, 5), stat: 'riotFill', per: 0.08 },
+  hazard:     { name: 'Hazard Pay', desc: '+25% riot tips', max: 4, cost: costs(90, 4), stat: 'riotTips', per: 0.25 },
+  binder:     { name: 'Coupon Binder', desc: '+15% sale tags on the floor', max: 5, cost: costs(80, 5), stat: 'tagLuck', per: 0.15 },
+  hours:      { name: 'Extended Hours', desc: 'Power-ups last 10% longer', max: 5, cost: costs(80, 5), stat: 'buffDur', per: 0.10 },
+  firstaid:   { name: 'First Aid Kit', desc: 'Heals 15% stronger', max: 5, cost: costs(70, 5), stat: 'heal', per: 0.15 },
+  tipjar:     { name: 'Tip Jar', desc: '+15% tip drops', max: 5, cost: costs(90, 5), stat: 'coin', per: 0.15 },
+  longarms:   { name: 'Long Arms', desc: '+10% pickup range', max: 5, cost: costs(60, 5), stat: 'magnet', per: 0.10 },
+  bigspills:  { name: 'Big Spills', desc: '+5% weapon area', max: 5, cost: costs(100, 5), stat: 'area', per: 0.05 },
+  badge:      { name: 'Manager Badge', desc: '+8% damage to elites and managers', max: 5, cost: costs(100, 5), stat: 'eliteDmg', per: 0.08 },
+  nap:        { name: 'Power Nap', desc: '+0.08s invulnerability after a hit', max: 3, cost: costs(150, 3), stat: 'invuln', per: 0.08 },
+  bulk:       { name: 'Bulk Order', desc: '-2% cooldowns', max: 5, cost: costs(150, 5), stat: 'cooldown', per: 0.02 },
+  comfort:    { name: 'Comfort Food', desc: 'Heals 10% stronger', max: 3, cost: costs(120, 3), stat: 'heal', per: 0.10 },
+  holster:    { name: 'Price Gun Holster', desc: '+3% damage', max: 3, cost: costs(180, 3), stat: 'dmg', per: 0.03 },
+  reward:     { name: 'Reward Card', desc: '+10% tip drops', max: 3, cost: costs(140, 3), stat: 'coin', per: 0.10 },
 };
+
+// Break Room, part 2: 25 perks earned by playing. Free and permanent once the
+// lifetime stat reaches 'need'. Stats: see staffStat() in main.js.
+export const EARNED = {
+  firstDay:   { name: 'First Day', desc: '+10 max HP', stat: 'maxHp', per: 10, cond: { stat: 'runs', need: 1, text: 'Work 1 shift' } },
+  clockedOut: { name: 'Clocked Out', desc: '+5% damage', stat: 'dmg', per: 0.05, cond: { stat: 'wins', need: 1, text: 'Survive a full shift' } },
+  regular:    { name: 'Regular', desc: '+5% XP', stat: 'xp', per: 0.05, cond: { stat: 'runs', need: 10, text: 'Work 10 shifts' } },
+  veteran:    { name: 'Veteran', desc: '+10% tips', stat: 'greed', per: 0.10, cond: { stat: 'runs', need: 30, text: 'Work 30 shifts' } },
+  eotm:       { name: 'Employee of the Month', desc: '+8% damage', stat: 'dmg', per: 0.08, cond: { stat: 'wins', need: 10, text: 'Survive 10 shifts' } },
+  handler:    { name: 'Crowd Handler', desc: '+5% weapon area', stat: 'area', per: 0.05, cond: { stat: 'totalKills', need: 5000, text: 'Handle 5,000 shoppers' } },
+  legend:     { name: 'Black Friday Legend', desc: '+10% damage', stat: 'dmg', per: 0.10, cond: { stat: 'totalKills', need: 50000, text: 'Handle 50,000 shoppers' } },
+  shelver:    { name: 'Shelf Stocker', desc: '+20% restock speed', stat: 'restock', per: 0.20, cond: { stat: 'restocks', need: 25, text: 'Restock 25 shelves' } },
+  invmaster:  { name: 'Inventory Master', desc: '+30% restock speed', stat: 'restock', per: 0.30, cond: { stat: 'restocks', need: 150, text: 'Restock 150 shelves' } },
+  riotSurv:   { name: 'Riot Survivor', desc: 'Riot meter fills 10% slower', stat: 'riotFill', per: 0.10, cond: { stat: 'riots', need: 10, text: 'Survive 10 riots' } },
+  riotVet:    { name: 'Riot Veteran', desc: '+50% riot tips', stat: 'riotTips', per: 0.5, cond: { stat: 'riots', need: 50, text: 'Survive 50 riots' } },
+  bargain:    { name: 'Bargain Hunter', desc: '+20% sale tags', stat: 'tagLuck', per: 0.20, cond: { stat: 'powerups', need: 15, text: 'Grab 15 power-ups' } },
+  dealSeeker: { name: 'Deal Seeker', desc: 'Power-ups last 25% longer', stat: 'buffDur', per: 0.25, cond: { stat: 'powerups', need: 75, text: 'Grab 75 power-ups' } },
+  escalation: { name: 'Escalation', desc: '+10% damage to elites and managers', stat: 'eliteDmg', per: 0.10, cond: { stat: 'bossKills', need: 1, text: 'Dismiss a manager' } },
+  upperMgmt:  { name: 'Upper Management', desc: '+20% damage to elites and managers', stat: 'eliteDmg', per: 0.20, cond: { stat: 'bossKills', need: 10, text: 'Dismiss 10 managers' } },
+  problem:    { name: 'Problem Customer', desc: '+1 armor', stat: 'armor', per: 1, cond: { stat: 'elites', need: 20, text: 'Knock out 20 Manager Requesters' } },
+  learner:    { name: 'Fast Learner', desc: '+10% XP', stat: 'xp', per: 0.10, cond: { stat: 'bestLevel', need: 30, text: 'Reach level 30' } },
+  unpaid:     { name: 'Unpaid Overtime', desc: 'One extra revive per run', stat: 'revives', per: 1, cond: { stat: 'bestOvertime', need: 300, text: 'Last 5 minutes of overtime' } },
+  gadget:     { name: 'Gadget Hound', desc: '+5% move speed', stat: 'speed', per: 0.05, cond: { stat: 'win_electronics', need: 1, text: 'Survive a shift in Electronics' } },
+  toyStory:   { name: 'Toy Story', desc: '+25 max HP', stat: 'maxHp', per: 25, cond: { stat: 'win_toys', need: 1, text: 'Survive a shift in Toys' } },
+  promoted:   { name: 'Promoted', desc: '-3% cooldowns', stat: 'cooldown', per: 0.03, cond: { stat: 'evos', need: 1, text: 'Evolve a weapon' } },
+  recipeBook: { name: 'Recipe Book', desc: '-5% cooldowns', stat: 'cooldown', per: 0.05, cond: { stat: 'evos', need: 6, text: 'Discover all 6 evolutions' } },
+  fullStaff:  { name: 'Full Staff', desc: '+20% tips', stat: 'greed', per: 0.20, cond: { stat: 'staff', need: 8, text: 'Hire all 8 staff' } },
+  collector:  { name: 'Receipt Collector', desc: '+20% pickup range', stat: 'magnet', per: 0.20, cond: { stat: 'receipts', need: 10000, text: 'Collect 10,000 receipts' } },
+  achiever:   { name: 'Achiever', desc: '+1 reroll per run', stat: 'rerolls', per: 1, cond: { stat: 'achievements', need: 8, text: 'Unlock 8 achievements' } },
+};
+
 
 // Sale tags lying on the floor: walk over one for a random power-up.
 // Every power-up says what it does (desc is shown on pickup and in the HUD).
