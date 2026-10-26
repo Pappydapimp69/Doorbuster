@@ -1539,12 +1539,12 @@ function showShop(focusId, tab = showShop.tab || 'buy') {
         <span class="pic">${got ? PERK_ICONS[e.stat] || '⭐' : '🔒'}</span><span class="pname">${e.name}</span>
         <span class="pbar"><span style="width:${100 * have / e.cond.need}%"></span></span></button>`;
     });
-  show(`<h2>${T('ui.breakRoom')} <small class="tips">💰 ${save.tips}</small></h2>
+  show(`<div class="screenhead"><h2>${T('ui.breakRoom')} <small class="tips">💰 ${save.tips}</small></h2>
     <div class="tabs"><button class="btn sm${tab === 'buy' ? ' on' : ''}" data-act="shoptab" data-arg="buy">Buy with tips</button>
-    <button class="btn sm${tab === 'earned' ? ' on' : ''}" data-act="shoptab" data-arg="earned">Earned by playing ${earnedN}/${Object.keys(EARNED).length}</button></div>
+    <button class="btn sm${tab === 'earned' ? ' on' : ''}" data-act="shoptab" data-arg="earned">Earned by playing ${earnedN}/${Object.keys(EARNED).length}</button></div></div>
     <div class="perkgrid" data-cols="5">${tiles.join('')}</div>
-    <div id="perkinfo" class="perkinfo"></div>
-    <button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
+    <div class="screenfoot"><div id="perkinfo" class="perkinfo"></div>
+    <button class="btn back" data-act="menu">${T('ui.back')}</button></div>`, showMenu);
   refocus(focusId ? `[data-arg="${focusId}"]` : '.ptile');
 }
 const escapeAttr = (h) => h.replace(/&/g, '&amp;').replace(/"/g, '&quot;');

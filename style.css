@@ -113,3 +113,7 @@ h2 .tips { font-size: 18px; color: var(--yellow); margin-left: 8px; }
 .perkinfo span { color: var(--dim); font-size: 13px; }
 .perkinfo i { font-style: normal; color: var(--yellow); font-size: 13px; }
 @media (max-width: 600px) { .perkgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Break Room: title, tips and tabs stay at the top; details and Back stay at the bottom. */
+.screenhead { position: sticky; top: -16px; z-index: 2; display: grid; justify-items: center; gap: 6px; width: min(800px, 98vw); padding: 10px 0 8px; background: rgba(10, 10, 16, .96); border-bottom: 2px solid var(--edge); }
+.screenfoot { position: sticky; bottom: -16px; z-index: 2; display: grid; justify-items: center; gap: 6px; width: min(800px, 98vw); padding: 8px 0 10px; background: rgba(10, 10, 16, .96); border-top: 2px solid var(--edge); }
