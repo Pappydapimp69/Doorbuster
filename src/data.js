@@ -246,22 +246,22 @@ MAPS.toys = {
 export const CHARACTERS = {
   stocker: { name: 'Stocker', cost: 0, weapon: 'priceGun', desc: 'Starts with the Price Gun. Steady all-rounder.',
     vest: '#d8433b', mods: {} },
-  cashier: { name: 'Cashier', cost: 150, weapon: 'couponStorm', desc: 'Coupon Storm. +15% XP.',
+  cashier: { name: 'Cashier', cost: 0, earn: { stat: 'receipts', need: 3000, text: 'Collect 3,000 receipts' }, weapon: 'couponStorm', desc: 'Coupon Storm. +15% XP.',
     vest: '#3aa55d', mods: { xp: 0.15 } },
-  security: { name: 'Security', cost: 300, weapon: 'boxCutter', desc: 'Box Cutter. +2 armor, +20 HP, 10% slower.',
+  security: { name: 'Security', cost: 0, earn: { stat: 'bossKills', need: 1, text: 'Dismiss a manager' }, weapon: 'boxCutter', desc: 'Box Cutter. +2 armor, +20 HP, 10% slower.',
     vest: '#2f4a8a', mods: { armor: 2, maxHp: 20, speed: -0.10 } },
-  janitor: { name: 'Night Janitor', cost: 500, weapon: 'wetFloor', desc: 'Wet Floor. +25% pickup range, -10% cooldowns.',
+  janitor: { name: 'Night Janitor', cost: 0, earn: { stat: 'riots', need: 3, text: 'Survive 3 riots' }, weapon: 'wetFloor', desc: 'Wet Floor. +25% pickup range, -10% cooldowns.',
     vest: '#7b7f8c', mods: { magnet: 0.25, cooldown: 0.10 } },
 };
 
 export const META = {
-  seniority: { name: 'Seniority', desc: '+10 max HP', max: 5, cost: [30, 60, 100, 150, 220], stat: 'maxHp', per: 10 },
-  insoles:   { name: 'Gel Insoles', desc: '+5% move speed', max: 5, cost: [40, 80, 130, 190, 260], stat: 'speed', per: 0.05 },
-  smooth:    { name: 'Smooth Talker', desc: '+10% tips', max: 5, cost: [40, 80, 130, 190, 260], stat: 'greed', per: 0.10 },
-  scanner:   { name: 'Quick Scan', desc: '+5% XP', max: 5, cost: [50, 100, 160, 230, 320], stat: 'xp', per: 0.05 },
-  caffeine:  { name: 'Caffeine', desc: '-3% cooldowns', max: 5, cost: [60, 120, 190, 270, 360], stat: 'cooldown', per: 0.03 },
-  rerolls:   { name: 'Price Check', desc: '+1 reroll per run', max: 3, cost: [50, 120, 220], stat: 'rerolls', per: 1 },
-  secondWind:{ name: 'Second Wind', desc: 'Revive once per run', max: 1, cost: [400], stat: 'revives', per: 1 },
+  seniority: { name: 'Seniority', desc: '+10 max HP', max: 5, cost: [60, 120, 200, 300, 440], stat: 'maxHp', per: 10 },
+  insoles:   { name: 'Gel Insoles', desc: '+5% move speed', max: 5, cost: [80, 160, 260, 380, 520], stat: 'speed', per: 0.05 },
+  smooth:    { name: 'Smooth Talker', desc: '+10% tips', max: 5, cost: [80, 160, 260, 380, 520], stat: 'greed', per: 0.10 },
+  scanner:   { name: 'Quick Scan', desc: '+5% XP', max: 5, cost: [100, 200, 320, 460, 640], stat: 'xp', per: 0.05 },
+  caffeine:  { name: 'Caffeine', desc: '-3% cooldowns', max: 5, cost: [120, 240, 380, 540, 720], stat: 'cooldown', per: 0.03 },
+  rerolls:   { name: 'Price Check', desc: '+1 reroll per run', max: 3, cost: [100, 240, 440], stat: 'rerolls', per: 1 },
+  secondWind:{ name: 'Second Wind', desc: 'Revive once per run', max: 1, cost: [800], stat: 'revives', per: 1 },
 };
 
 // Sale tags lying on the floor: walk over one for a random power-up.
@@ -291,7 +291,7 @@ export const RIOT = {
   duration: 12,              // a riot lasts this long, then the meter starts from zero
   grace: 60,                 // no riot in the first minute of a shift
   speed: 1.1, spawn: 1.2, dmg: 1, tipMul: 2, // riot pay: tips count double while it lasts
-  rewardTips: 2, rewardXp: 3,
+  rewardTips: 1, rewardXp: 3,
 };
 
 export const POWERUP_DENSITY = 0.0015; // chance per floor tile (24px); about one on screen at a time

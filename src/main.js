@@ -434,7 +434,7 @@ function killEnemy(e) {
   if (e.def.splits) for (let i = 0; i < e.def.splits; i++) {
     const s = spawnEnemy('shopper', 0, 0); s.x = e.x + rand(-8, 8); s.y = e.y + rand(-8, 8);
   }
-  if (rng() < 0.03 * G.stats.greed) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: G.rioting ? RIOT.tipMul : 1 });
+  if (rng() < 0.012 * G.stats.greed) G.drops.push({ x: e.x, y: e.y, kind: 'coin', v: G.rioting ? RIOT.tipMul : 1 });
   if (rng() < 0.006 && G.drops.filter((d) => d.kind === 'heart').length < 6) G.drops.push({ x: e.x, y: e.y, kind: 'heart' });
   if (e.def.elite) {
     G.drops.push({ x: e.x, y: e.y, kind: 'box' });
@@ -1411,8 +1411,8 @@ const ACTIONS = {
     const c = CHARACTERS[id];
     if (DEMO && !DEMO_STAFF.includes(id)) return;
     if (save.unlocked[id]) { save.selected = id; writeSave(save); sfx('pick'); showStaff(id); return; }
-    if (save.tips < c.cost) return;
-    save.tips -= c.cost; save.unlocked[id] = true; save.selected = id; writeSave(save); sfx('coin');
+    if (!staffEarned(id)) return; // staff are earned by playing, not bought
+    save.unlocked[id] = true; save.selected = id; writeSave(save); sfx('coin');
     if (Object.keys(CHARACTERS).every((k) => save.unlocked[k])) achieve('FULL_STAFF');
     showStaff(id);
   },
@@ -1472,6 +1472,13 @@ function showInventory() {
     <button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
 }
 
+// Staff unlock by lifetime performance. Each stat only ever goes up.
+function staffStat(stat) {
+  if (stat === 'receipts') return save.receiptsGot || 0;
+  return save.stats[stat] || 0;
+}
+function staffEarned(id) { const e = CHARACTERS[id].earn; return !e || staffStat(e.stat) >= e.need; }
+
 function showShop(focusId) {
   show(`<h2>${T('ui.breakRoom')}</h2><p class="sub">${T('ui.shopSub')} 💰 ${save.tips}</p>
     <div class="grid" data-cols="2">${Object.entries(META).map(([id, m]) => {
@@ -1489,7 +1496,7 @@ function showStaff(focusId) {
       const own = save.unlocked[id], sel = save.selected === id;
       return `<button class="btn card${sel ? ' sel' : ''}" data-act="hire" data-arg="${id}">
         <b>${T(`characters.${id}.name`)} ${ICONS[c.weapon]}</b><span>${T(`characters.${id}.desc`)}</span>
-        <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 ' + T('ui.fullGame') : sel ? T('ui.onShift') : own ? T('ui.select') : '💰 ' + c.cost}</i></button>`;
+        <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 ' + T('ui.fullGame') : sel ? T('ui.onShift') : own ? T('ui.select') : (staffEarned(id) ? '✅ Earned: hire' : '🔒 ' + c.earn.text + ` (${Math.min(staffStat(c.earn.stat), c.earn.need)}/${c.earn.need})`)}</i></button>`;
     }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
   refocus(focusId && `[data-arg="${focusId}"]`);
 }
@@ -1570,7 +1577,7 @@ function endRun(win) {
     bonus = Math.round((Math.floor((G.t - G.otStart) / 60) * 10 + Math.floor((G.kills - G.otKills) / 25)) * G.stats.greed);
     save.stats.bestOvertime = Math.max(save.stats.bestOvertime || 0, Math.floor(G.t - G.otStart));
   } else {
-    bonus = Math.round((Math.floor(G.kills / 25) + Math.floor(survived / 60) * 5 + (win ? 50 : 0)) * G.stats.greed);
+    bonus = Math.round((Math.floor(G.kills / 100) + Math.floor(survived / 60) * 3 + (win ? 40 : 0)) * G.stats.greed);
     save.stats.runs++;
     save.stats.bestTime = Math.max(save.stats.bestTime, survived);
     save.stats.bestLevel = Math.max(save.stats.bestLevel || 0, G.level);
@@ -1579,6 +1586,7 @@ function endRun(win) {
   const total = G.tipsRun + bonus;
   save.tips += total;
   save.stats.totalKills += G.kills - (G.otKills || 0);
+  save.stats.riots = (save.stats.riots || 0) + (G.riots || 0) - (G.riotsBanked || 0); G.riotsBanked = G.riots || 0;
   if (win) {
     save.stats.wins++;
     achieve('FIRST_SHIFT');
