@@ -12,7 +12,9 @@
     "shots": "node test/shots.mjs",
     "dist:win": "electron-builder --win dir",
     "dist:linux": "electron-builder --linux dir",
-    "dist:mac": "electron-builder --mac dir"
+    "dist:mac": "electron-builder --mac dir",
+    "store": "node tools/make-store-assets.mjs",
+    "demo": "DOORBUSTER_DEMO=1 electron ."
   },
   "devDependencies": {
     "electron": "33.2.0",

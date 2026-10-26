@@ -1,12 +1,12 @@
 // Desktop shell for Steam. Loads the same index.html the browser build uses.
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('node:path');
 
-let steam = null;
+let steam = null, appId = 480;
 try {
   // steamworks.js talks to the running Steam client. Without Steam (dev, itch.io) the game still runs.
   const sw = require('steamworks.js');
-  const appId = Number(process.env.STEAM_APP_ID || require('node:fs').readFileSync(path.join(__dirname, '..', 'steam_appid.txt'), 'utf8').trim());
+  appId = Number(process.env.STEAM_APP_ID || require('node:fs').readFileSync(path.join(__dirname, '..', 'steam_appid.txt'), 'utf8').trim());
   steam = sw.init(appId);
   sw.electronEnableSteamOverlay();
 } catch (e) {
@@ -18,6 +18,12 @@ ipcMain.handle('steam:achievement', (_e, id) => {
 });
 ipcMain.on('steam:name', (e) => {
   try { e.returnValue = steam ? steam.localplayer.getName() : null; } catch { e.returnValue = null; }
+});
+// Demo builds point the wishlist button at the FULL game's page.
+ipcMain.handle('steam:store', () => {
+  let full = appId;
+  try { full = Number(require('node:fs').readFileSync(path.join(__dirname, '..', 'steam_full_appid.txt'), 'utf8').trim()) || appId; } catch { /* full build: own page */ }
+  return shell.openExternal(steam ? `steam://store/${full}` : `https://store.steampowered.com/app/${full}/`);
 });
 ipcMain.on('steam:available', (e) => { e.returnValue = !!steam; });
 

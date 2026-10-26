@@ -1,0 +1,113 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Store art</title>
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// Renders Steam capsule art from the in-game sprites. ?w=920&h=430&kind=header
+import { SPR, buildSprites } from '../src/sprites.js';
+import { CHARACTERS } from '../src/data.js';
+
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || 920, H = +q.get('h') || 430, kind = q.get('kind') || 'header';
+const c = document.getElementById('c'); c.width = W; c.height = H;
+const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+buildSprites(CHARACTERS);
+
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+function floor(px) {
+  const T = 24 * px;
+  for (let i = 0; i * T < W; i++) for (let j = 0; j * T < H; j++) {
+    x.fillStyle = (i + j) & 1 ? '#d8d5cc' : '#cfccc2'; x.fillRect(i * T, j * T, T, T);
+  }
+  x.fillStyle = '#e6c84a'; x.fillRect(Math.floor(W * 0.18), 0, 2 * px, H); x.fillRect(Math.floor(W * 0.82), 0, 2 * px, H);
+}
+
+function crowd(px, cxp, cyp, count, inner) {
+  const people = [];
+  for (let i = 0; i < count; i++) {
+    const a = rnd() * Math.PI * 2, d = inner + Math.pow(rnd(), 1.6) * Math.max(W, H) * 0.8;
+    const kinds = ['shopper', 'shopper', 'walker', 'clipper', 'cartPusher'];
+    people.push({ x: cxp + Math.cos(a) * d, y: cyp + Math.sin(a) * d * 0.75, k: kinds[Math.floor(rnd() * kinds.length)], v: Math.floor(rnd() * 8), f: Math.cos(a) > 0 ? -1 : 1 });
+  }
+  people.sort((a, b) => a.y - b.y);
+  for (const p of people) {
+    const s = SPR[p.k][p.v % SPR[p.k].length];
+    x.save(); x.translate(Math.round(p.x), Math.round(p.y)); x.scale(p.f * px, px);
+    x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(-s.width / 2 + 2, s.height / 2 - 1, s.width - 4, 2);
+    x.drawImage(s, -s.width / 2, -s.height / 2); x.restore();
+  }
+}
+
+function hero(px, hx, hy) {
+  const s = SPR.worker_stocker;
+  // Price-gun stickers flying out.
+  for (let i = 0; i < 9; i++) {
+    const a = -0.4 + i * 0.7, d = (30 + i * 9) * px;
+    x.fillStyle = '#000'; x.fillRect(hx + Math.cos(a) * d - 2.5 * px, hy + Math.sin(a) * d - 2 * px, 5 * px, 4 * px);
+    x.fillStyle = '#ff9a2e'; x.fillRect(hx + Math.cos(a) * d - 1.5 * px, hy + Math.sin(a) * d - 1 * px, 3 * px, 2 * px);
+  }
+  x.strokeStyle = 'rgba(255,220,90,.8)'; x.lineWidth = 2 * px;
+  x.beginPath(); x.arc(hx, hy, 34 * px, 0, Math.PI * 2); x.stroke();
+  for (let i = 0; i < 2; i++) { const a = i * Math.PI + 0.6; x.drawImage(SPR.cart, hx + Math.cos(a) * 48 * px - 5 * px, hy + Math.sin(a) * 48 * px - 3 * px, 10 * px, 6 * px); }
+  x.drawImage(s, hx - 6 * px * 1.4, hy - 7 * px * 1.4, 12 * px * 1.4, 14 * px * 1.4);
+}
+
+function band(ty, size) {
+  const g = x.createLinearGradient(0, ty - size, 0, ty + size * 1.3);
+  g.addColorStop(0, 'rgba(21,20,28,0)'); g.addColorStop(0.3, 'rgba(21,20,28,.55)'); g.addColorStop(0.75, 'rgba(21,20,28,.55)'); g.addColorStop(1, 'rgba(21,20,28,0)');
+  x.fillStyle = g; x.fillRect(0, ty - size, W, size * 2.3);
+}
+
+function title(size, tx, ty, align = 'center', sub = true) {
+  x.textAlign = align; x.textBaseline = 'middle';
+  x.font = `900 ${size}px "Trebuchet MS", "Arial Black", sans-serif`;
+  const a = 'DOOR', b = 'BUSTER';
+  const fit = (W * 0.9) / (x.measureText(a).width + x.measureText(b).width);
+  if (fit < 1) { size = Math.floor(size * fit); x.font = `900 ${size}px "Trebuchet MS", "Arial Black", sans-serif`; }
+  const wa = x.measureText(a).width, wb = x.measureText(b).width;
+  let left = align === 'center' ? tx - (wa + wb) / 2 : tx;
+  x.textAlign = 'left';
+  for (const [t, col, off] of [[a, '#f3f1ea', 0], [b, '#d8433b', wa]]) {
+    x.lineJoin = 'round'; x.lineWidth = size * 0.16; x.strokeStyle = '#15141c';
+    x.strokeText(t, left + off, ty + size * 0.08); x.strokeText(t, left + off, ty);
+    x.fillStyle = col; x.fillText(t, left + off, ty);
+  }
+  if (sub) {
+    const st = 'SURVIVE THE BLACK FRIDAY SHIFT';
+    let ss = Math.round(size * 0.22);
+    x.font = `700 ${ss}px "Trebuchet MS", sans-serif`;
+    if (x.measureText(st).width > W * 0.9) { ss = Math.floor(ss * W * 0.9 / x.measureText(st).width); x.font = `700 ${ss}px "Trebuchet MS", sans-serif`; }
+    x.textAlign = align === 'center' ? 'center' : 'left';
+    const sx = align === 'center' ? tx : tx + 4;
+    x.lineWidth = size * 0.06; x.strokeStyle = '#15141c'; x.strokeText(st, sx, ty + size * 0.72);
+    x.fillStyle = '#f5d142'; x.fillText(st, sx, ty + size * 0.72);
+  }
+}
+
+function vignette() {
+  const g = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.75);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(20,10,20,.55)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+}
+
+const px = Math.max(2, Math.round(Math.min(W, H) / 110));
+if (kind === 'logo') {
+  title(Math.round(W / 6.2), W / 2, H / 2, 'center', false);
+} else {
+  floor(px);
+  const hx = kind === 'header' || kind === 'main' || kind === 'small' ? W * 0.5 : W / 2;
+  const hy = kind === 'library' || kind === 'vertical' ? H * 0.62 : kind === 'hero' ? H * 0.55 : H * 0.62;
+  crowd(px, hx, hy, Math.round((W * H) / (px * px * 260)), 44 * px);
+  hero(px, hx, hy);
+  vignette();
+  if (kind !== 'hero') {
+    const size = kind === 'small' ? H * 0.42 : kind === 'library' || kind === 'vertical' ? W * 0.17 : H * 0.26;
+    const ty = kind === 'library' || kind === 'vertical' ? H * 0.2 : kind === 'small' ? H * 0.42 : H * 0.24;
+    band(ty, size);
+    title(Math.round(size), W / 2, ty, 'center', kind !== 'small');
+  }
+}
+window.done = true;
+</script></body></html>

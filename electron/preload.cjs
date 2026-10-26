@@ -7,4 +7,10 @@ if (ipcRenderer.sendSync('steam:available')) {
     playerName: () => ipcRenderer.sendSync('steam:name'),
   });
 }
-contextBridge.exposeInMainWorld('desktop', { quit: () => window.close() });
+const fs = require('node:fs'), path = require('node:path');
+const demo = process.env.DOORBUSTER_DEMO === '1' || fs.existsSync(path.join(process.resourcesPath || '', 'demo.flag'));
+contextBridge.exposeInMainWorld('desktop', {
+  quit: () => window.close(),
+  demo,
+  openStore: () => ipcRenderer.invoke('steam:store'),
+});

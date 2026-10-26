@@ -22,6 +22,10 @@ const ICONS = {
   shoes: '👟', energy: '🥤', nameTag: '📛', lanyard: '🪪', overtime: '⏰', union: '💳',
 };
 
+// Demo build (Steam Next Fest): ?demo in the browser, or DOORBUSTER_DEMO / demo.flag on desktop.
+const DEMO = new URLSearchParams(location.search).has('demo') || !!window.desktop?.demo;
+const DEMO_STAFF = ['stocker', 'cashier'];
+
 let save = loadSave();
 let state = 'menu';
 let G = null;
@@ -415,7 +419,7 @@ function killEnemy(e) {
 }
 
 function dropGem(x, y, v) {
-  if (G.gems.length > 350) {
+  if (G.gems.length > 220) {
     // Fold into an existing far gem instead of growing the list.
     const g = G.gems[Math.floor(rng() * G.gems.length)];
     g.v += v; return;
@@ -1108,7 +1112,8 @@ ui.screen.addEventListener('mouseover', (e) => {
 const ACTIONS = {
   start: () => (Object.keys(STAGES).some((id) => id !== 'floor' && mapUnlocked(id)) && state === 'menu' ? showMaps() : startRun()),
   map: (id) => { if (!mapUnlocked(id)) return; save.map = id; writeSave(save); startRun(); },
-  overtime: () => startOvertime(),
+  overtime: () => { if (!DEMO) startOvertime(); },
+  wishlist: () => (window.desktop?.openStore ? window.desktop.openStore() : window.open('https://store.steampowered.com/', '_blank')),
   shop: () => showShop(),
   staff: () => showStaff(),
   settings: () => showSettings(state === 'paused' ? showPause : showMenu),
@@ -1124,6 +1129,7 @@ const ACTIONS = {
   },
   hire: (id) => {
     const c = CHARACTERS[id];
+    if (DEMO && !DEMO_STAFF.includes(id)) return;
     if (save.unlocked[id]) { save.selected = id; writeSave(save); sfx('pick'); showStaff(id); return; }
     if (save.tips < c.cost) return;
     save.tips -= c.cost; save.unlocked[id] = true; save.selected = id; writeSave(save); sfx('coin');
@@ -1147,12 +1153,13 @@ function refocus(selector) {
 
 function showMenu() {
   state = 'menu';
-  show(`<div class="title"><h1>DOOR<span>BUSTER</span></h1><p>Black Friday. 5:00 AM. The doors are opening.</p></div>
+  show(`<div class="title"><h1>DOOR<span>BUSTER</span></h1>${DEMO ? '<p class="demo">DEMO</p>' : ''}<p>Black Friday. 5:00 AM. The doors are opening.</p></div>
     <div class="menu">
       <button class="btn" data-act="start">Clock In</button>
       <button class="btn" data-act="staff">Staff Room</button>
       <button class="btn" data-act="shop">Break Room <small>💰 ${save.tips}</small></button>
       <button class="btn" data-act="settings">Settings</button>
+      ${DEMO ? '<button class="btn" data-act="wishlist">⭐ Wishlist</button>' : ''}
       ${window.desktop ? '<button class="btn" data-act="quit">Quit</button>' : ''}
     </div>
     <p class="hint">Move: WASD / arrows / stick. Weapons fire on their own. Survive until 11:00 AM.</p>`);
@@ -1175,7 +1182,7 @@ function showStaff(focusId) {
       const own = save.unlocked[id], sel = save.selected === id;
       return `<button class="btn card${sel ? ' sel' : ''}" data-act="hire" data-arg="${id}">
         <b>${c.name} ${ICONS[c.weapon]}</b><span>${c.desc}</span>
-        <i>${sel ? 'ON SHIFT' : own ? 'Select' : '💰 ' + c.cost}</i></button>`;
+        <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 Full game' : sel ? 'ON SHIFT' : own ? 'Select' : '💰 ' + c.cost}</i></button>`;
     }).join('')}</div><button class="btn back" data-act="menu">Back</button>`, showMenu);
   refocus(focusId && `[data-arg="${focusId}"]`);
 }
@@ -1262,7 +1269,7 @@ function endRun(win) {
     : `Clocked out early at ${clockText()}.`;
   show(`<h2>${title}</h2><p class="sub">${sub}</p>
     <div class="stats"><div><b>${mm}:${ss}</b>survived</div><div><b>${G.kills}</b>shoppers</div><div><b>${G.level}</b>level</div><div><b>💰 ${total}</b>tips (+${bonus} bonus)</div></div>
-    <div class="menu">${win ? '<button class="btn" data-act="overtime">Work Overtime (endless)</button>' : ''}
+    <div class="menu">${DEMO ? '<button class="btn" data-act="wishlist">⭐ Wishlist the full game</button>' : win ? '<button class="btn" data-act="overtime">Work Overtime (endless)</button>' : ''}
     <button class="btn" data-act="start">Pick Up Another Shift</button>
     <button class="btn" data-act="staff">Staff Room</button>
     <button class="btn" data-act="shop">Break Room</button>
@@ -1277,18 +1284,18 @@ function startOvertime() {
   announce('OVERTIME. The doors never close.', true);
 }
 
-function mapUnlocked(id) { return (save.stats.wins || 0) >= (STAGES[id].unlockWins || 0); }
+function mapUnlocked(id) { return !(DEMO && id !== 'floor') && (save.stats.wins || 0) >= (STAGES[id].unlockWins || 0); }
 
 function showMaps() {
   show(`<h2>Choose a Department</h2><div class="grid" data-cols="2">${Object.entries(STAGES).map(([id, m]) => {
     const open = mapUnlocked(id);
     return `<button class="btn card${(save.map || 'floor') === id ? ' sel' : ''}" data-act="map" data-arg="${id}" ${open ? '' : 'disabled'}>
-      <b>${m.name}</b><span>${m.desc}</span><i>${open ? 'Clock in' : '🔒 Survive a full shift'}</i></button>`;
+      <b>${m.name}</b><span>${m.desc}</span><i>${open ? 'Clock in' : DEMO && id !== 'floor' ? '🔒 Full game' : '🔒 Survive a full shift'}</i></button>`;
   }).join('')}</div><button class="btn back" data-act="menu">Back</button>`, showMenu);
 }
 
 // ---------- loop ----------
-let last = performance.now(), acc = 0, pollPadCached = { x: 0, y: 0 };
+let last = performance.now(), acc = 0, pollPadCached = { x: 0, y: 0 }, autoPickT = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -1303,6 +1310,11 @@ function frame(now) {
   } else {
     acc = 0;
     menuInput();
+    // Autopilot (trailers, demos) picks its own upgrades after a beat on screen.
+    if (autopilot && state === 'levelup') {
+      autoPickT = (autoPickT || 0) + dt;
+      if (autoPickT > 0.6) { autoPickT = 0; ACTIONS.choose(botChoice()); }
+    }
   }
   pressed.clear();
   render();
