@@ -188,9 +188,10 @@ const MAPS = {
     '.gggggggg.',
     '..k....k..',
   ],
-  receipt1: ['www', 'wkw', 'www', 'wkw'],
-  receipt2: ['yyy', 'yky', 'yyy', 'yky'],
-  receipt3: ['ppp', 'pkp', 'ppp', 'pkp'],
+  // Paper slips with a torn bottom edge and an outline so they read on any floor.
+  receipt1: ['kkkkk', 'kwwwk', 'kwkwk', 'kwwwk', 'kwkwk', 'kwwwk', 'kw.wk'],
+  receipt2: ['kkkkk', 'kyyyk', 'kykyk', 'kyyyk', 'kykyk', 'kyyyk', 'ky.yk'],
+  receipt3: ['kkkkk', 'kpppk', 'kpkpk', 'kpppk', 'kpkpk', 'kpppk', 'kp.pk'],
   coin: ['.yy.', 'yooy', 'yooy', '.yy.'],
   heart: ['R.R.', 'RRRR', 'RRRR', '.RR.'],
   box: ['oooooo', 'okkkko', 'oooooo', 'oyyyyo', 'oooooo'],

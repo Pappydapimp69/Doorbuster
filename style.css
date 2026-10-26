@@ -81,3 +81,6 @@ h3 { margin: 6px 0 0; font-size: 16px; color: var(--yellow); letter-spacing: 1px
 #tip { position: absolute; bottom: 14%; left: 50%; transform: translateX(-50%); max-width: 80%; padding: 10px 16px; background: rgba(0,0,0,.75); border: 2px solid var(--yellow); border-radius: 8px; font-weight: 700; text-align: center; opacity: 0; transition: opacity .4s; pointer-events: none; }
 #tip.show { opacity: 1; }
 .combo { font-size: calc(18px + 14px * var(--c)); color: hsl(calc(50 - 50 * var(--c)), 95%, 60%); font-weight: 900; }
+#glabel { position: absolute; transform: translate(-50%, -100%); padding: 2px 6px; background: rgba(0,0,0,.75); border-radius: 4px; font-size: 12px; font-weight: 800; white-space: nowrap; pointer-events: none; animation: bob 0.8s ease-in-out infinite alternate; }
+#glabel::after { content: ""; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-bottom: 0; border-top-color: rgba(0,0,0,.75); }
+@keyframes bob { to { margin-top: -3px; } }

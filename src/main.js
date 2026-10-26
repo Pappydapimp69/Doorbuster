@@ -725,7 +725,7 @@ function updatePickups(dt) {
       const dx = p.x - g.x, dy = p.y - g.y, d = Math.hypot(dx, dy) || 1;
       const sp = 260;
       g.x += (dx / d) * sp * dt; g.y += (dy / d) * sp * dt;
-      if (d < 6) { g.dead = true; gainXp(g.v); }
+      if (d < 6) { g.dead = true; gainXp(g.v); save.receiptsGot = (save.receiptsGot || 0) + 1; }
     }
   }
   G.gems = G.gems.filter((g) => !g.dead);
@@ -975,7 +975,8 @@ function render() {
   }
   for (const g of G.gems) {
     const s = g.v >= 25 ? SPR.receipt3 : g.v >= 5 ? SPR.receipt2 : SPR.receipt1;
-    cx.drawImage(s, Math.round(g.x - 1), Math.round(g.y - 2));
+    const flutter = g.pull ? 0 : Math.round(Math.sin(G.t * 5 + g.x) * 1);
+    cx.drawImage(s, Math.round(g.x - 2), Math.round(g.y - 3 + flutter));
   }
   for (const d of G.drops) {
     const s = SPR[d.kind];
@@ -1107,7 +1108,7 @@ function drawFloor() {
     if (((i % 12) + 12) % 12 === 0) { cx.fillStyle = G.stage.stripe; cx.fillRect(sx, sy, 2, T); }
     if (r < 0.02) { cx.fillStyle = '#e04848'; cx.fillRect(sx + 6, sy + 8, 10, 6); cx.fillStyle = '#fff'; cx.fillRect(sx + 8, sy + 10, 6, 2); }
     else if (r < 0.035) { cx.fillStyle = 'rgba(140,90,40,0.25)'; cx.beginPath(); cx.ellipse(sx + 12, sy + 12, 7, 4, 0, 0, Math.PI * 2); cx.fill(); }
-    else if (r < 0.05) { cx.fillStyle = '#f3f1ea'; cx.fillRect(sx + 10, sy + 6, 4, 5); }
+    else if (r < 0.05) { cx.fillStyle = 'rgba(0,0,0,0.07)'; cx.fillRect(sx + 6, sy + 10, 9, 2); } // scuff (not white: receipts are)
   }
 }
 
@@ -1121,7 +1122,29 @@ function clockText() {
 }
 
 let hudCache = '';
+// Until the player has picked up a few, label the nearest receipt on screen:
+// it's the XP, and you collect it by walking over it.
+function renderReceiptLabel() {
+  const el = $('#glabel');
+  const show = G && state === 'play' && (save.receiptsGot || 0) < 5;
+  let best = null, bd = Infinity;
+  if (show) for (const g of G.gems) {
+    const sx = g.x - camX, sy = g.y - camY;
+    if (sx < 10 || sx > W - 10 || sy < 30 || sy > H - 10) continue;
+    if (ui.banner.classList.contains('show') && sy < H * 0.4) continue; // keep clear of announcements
+    const d = dist2(g, G.player);
+    if (d < bd) { bd = d; best = { sx, sy }; }
+  }
+  if (!best) { el.style.display = 'none'; return; }
+  const k = canvas.clientWidth / W;
+  el.style.display = '';
+  el.style.left = best.sx * k + 'px';
+  el.style.top = (best.sy - 6) * k + 'px';
+  el.textContent = T('ui.receiptLabel');
+}
+
 function renderHud() {
+  renderReceiptLabel();
   if (!G || state === 'menu') { ui.hud.style.display = 'none'; return; }
   ui.hud.style.display = '';
   const w = G.weapons.map((x) => `<span class="slot${x.evolved ? ' evo' : ''}">${ICONS[x.id]}<b>${x.evolved ? '★' : x.lv}</b></span>`).join('');
