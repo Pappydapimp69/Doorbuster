@@ -277,6 +277,7 @@ function spawnEnemy(type, ang = rand(0, Math.PI * 2), d = rand(270, 310)) {
     vx: 0, vy: 0, kx: 0, ky: 0, flash: 0, slow: 0, hit: {}, var: Math.floor(rng() * SHIRT_COUNT),
     t: rand(0, 3), charging: 0, cdx: 0, cdy: 0, dead: false, face: 1,
   };
+  if (G.store && y > G.store.h) e.entering = true;
   G.enemies.push(e);
   return e;
 }
@@ -291,7 +292,8 @@ function storeSpot(x, y, ang, d) {
     x = p.x + Math.cos(a) * d; y = p.y + Math.sin(a) * d;
   }
   const door = s.doors.reduce((b, o) => (dist2(o, p) < dist2(b, p) ? o : b));
-  return [door.x + rand(-30, 30), door.y - rand(0, 20)];
+  // Outside the doors: they walk in (and can't be hurt) until they're through the entrance.
+  return [door.x + rand(-30, 30), s.h + rand(20, 50)];
 }
 
 function director(dt) {
@@ -362,6 +364,12 @@ function updateEnemies(dt) {
     const d = Math.hypot(dx, dy) || 1;
     dx /= d; dy /= d;
     let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (!e.def.scooter && onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1) * (G.rioting ? RIOT.speed : 1);
+    if (e.entering) {
+      // Walking in through the doors; normal once past the entrance.
+      e.y -= Math.max(sp, 30) * dt;
+      if (e.y < st.h - 30) e.entering = false;
+      continue;
+    }
     let mx = dx, my = dy;
     // In a store: chase straight when there's a clear path, else follow the flow field around shelves.
     let fx = dx, fy = dy;
@@ -469,6 +477,7 @@ function updateEnemies(dt) {
   }
   // Shelves are solid. A scooter that rams one stops dead and is dazed for a moment.
   if (st) for (const e of G.enemies) {
+    if (e.entering) continue;
     if (collide(st, e, e.r) && e.def.scooter && e.charging > 0) { e.charging = 0; e.t = 0; e.stunT = 0.6; e.kx = e.ky = 0; G.shake = Math.max(G.shake, 0.15); }
   }
   // Contact damage.
@@ -542,7 +551,7 @@ function hurtPlayer(raw, src = '?') {
 
 let curSrc = '?';
 function damageEnemy(e, dmg, kx, ky, knock) {
-  if (e.dead) return;
+  if (e.dead || e.entering) return; // still coming through the doors: no off-screen receipt piles at the entrance
   if (skill() === 'elite' && (e.def.elite || e.def.boss)) dmg *= 1.6;
   if (G.stats.caution && (e.marked > 0 || e.slow > 0 || e.stunT > 0 || G.buffs.freeze)) dmg *= 1 + G.stats.caution; // Caution Tape
   if (curSrc !== 'powerup') dmg *= G.stats.dmg * (e.def.elite || e.def.boss ? G.stats.eliteDmg : 1);
@@ -626,7 +635,7 @@ function closestEnemies(n, range = 260) {
   const p = G.player;
   const list = [];
   for (const e of G.enemies) {
-    if (e.dead) continue;
+    if (e.dead || e.entering) continue;
     const d = dist2(e, p);
     if (d < range * range) list.push([d, e]);
   }
