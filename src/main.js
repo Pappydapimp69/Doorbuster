@@ -1586,10 +1586,10 @@ function showShop(focusId, tab = showShop.tab || 'buy') {
   const tiles = tab === 'buy'
     ? Object.entries(META).map(([id, m]) => {
       const lv = metaLv(id), maxed = lv >= m.max, cost = maxed ? 0 : m.cost[lv];
-      const info = `<b>${PERK_ICONS[m.stat] || '⭐'} ${T(`meta.${id}.name`)}</b><span>${T(`meta.${id}.desc`)} per level · level ${lv}/${m.max}</span><i>${maxed ? T('ui.maxed') : (save.tips >= cost ? 'Buy for 💰 ' : 'Needs 💰 ') + cost}</i>`;
+      const info = `<b>${PERK_ICONS[m.stat] || '⭐'} ${T(`meta.${id}.name`)} <em class="pips">${'●'.repeat(lv)}${'○'.repeat(m.max - lv)}</em></b><span>${T(`meta.${id}.desc`)} per level · level ${lv}/${m.max}</span><i>${maxed ? T('ui.maxed') : (save.tips >= cost ? 'Buy for 💰 ' : 'Needs 💰 ') + cost}</i>`;
       return `<button class="btn ptile${maxed ? ' maxed' : ''}" data-act="buy" data-arg="${id}" ${!maxed && save.tips < cost ? 'data-poor' : ''} data-info="${escapeAttr(info)}">
         <span class="pic">${PERK_ICONS[m.stat] || '⭐'}</span><span class="pname">${T(`meta.${id}.name`)}</span>
-        <span class="pips">${'●'.repeat(lv)}${'○'.repeat(m.max - lv)}</span><span class="pcost">${maxed ? '✓' : '💰' + cost}</span></button>`;
+        ${maxed ? '' : `<span class="pcost">💰${cost}</span>`}</button>`;
     })
     : Object.entries(EARNED).map(([id, e]) => {
       const got = perkEarned(id), have = Math.min(staffStat(e.cond.stat), e.cond.need);

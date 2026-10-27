@@ -126,3 +126,8 @@ h2 .tips { font-size: 18px; color: var(--yellow); margin-left: 8px; }
 #tpause { position: fixed; bottom: calc(12px + env(safe-area-inset-bottom)); right: calc(12px + env(safe-area-inset-right)); width: 44px; height: 44px; border-radius: 10px; border: 2px solid #000; background: rgba(0,0,0,.6); color: var(--ink); font-size: 20px; z-index: 5; }
 body.touch .ptile { min-height: 64px; }
 body.touch .hint { display: none; }
+
+/* Compact tiles: icon, name, price; maxed tiles just get the green border. */
+.ptile { min-height: 0; padding: 4px 4px 5px; }
+body.touch .ptile { min-height: 0; }
+.perkinfo b .pips { font-style: normal; color: var(--yellow); font-size: 14px; letter-spacing: 2px; margin-left: 6px; }
