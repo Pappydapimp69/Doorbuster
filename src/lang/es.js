@@ -67,10 +67,10 @@ export default {
     toys: { name: 'Juguetes', desc: 'El pasillo que todo padre teme. Se desbloquea tras un turno completo en Electrónica.', boss: 'Dueño de la tienda' },
   },
   characters: {
-    stocker: { name: 'Reponedor', desc: 'Empieza con la Etiquetadora. Equilibrado.' },
-    cashier: { name: 'Cajera', desc: 'Tormenta de cupones. +15% EXP.' },
-    security: { name: 'Seguridad', desc: 'Cúter. +2 armadura, +20 PS, 10% más lento.' },
-    janitor: { name: 'Limpiador nocturno', desc: 'Suelo mojado. +25% de radio de recogida, -10% de recarga.' },
+    stocker: { name: 'Reponedor' },
+    cashier: { name: 'Cajera' },
+    security: { name: 'Seguridad' },
+    janitor: { name: 'Limpiador nocturno' },
   },
   meta: {
     seniority: { name: 'Antigüedad', desc: '+10 PS máx.' },

@@ -11,7 +11,7 @@ and survive until 11:00 AM.
 - Restock or Riot: shoppers strip shelves, empty shelves fill a riot meter, stand still to restock for tips
 - Sale tags on the floor give random power-ups; coffee spills slow shoppers
 - Endless Overtime after a win; timed events (Doorbuster Rush, Flash Sales)
-- Break Room meta upgrades and 4 unlockable staff, paid in tips
+- Break Room: 50 perks (25 bought with tips, 25 earned by playing); 8 staff, each with a starting weapon and passive
 - Keyboard, mouse, gamepad (Steam Deck friendly) and touch (floating stick); all sound synthesized, no assets to license
 - 10 Steam achievements wired through steamworks.js
 - English, 简体中文, Русский, Español, Português (Brasil), Deutsch — follows Steam's language, switchable in Settings

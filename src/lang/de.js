@@ -67,10 +67,10 @@ export default {
     toys: { name: 'Spielwaren', desc: 'Der Gang, den alle Eltern fürchten. Freigeschaltet nach einer ganzen Schicht in der Elektronik.', boss: 'Ladenbesitzer' },
   },
   characters: {
-    stocker: { name: 'Lagerist', desc: 'Startet mit dem Preisauszeichner. Solider Allrounder.' },
-    cashier: { name: 'Kassiererin', desc: 'Gutscheinsturm. +15 % EP.' },
-    security: { name: 'Security', desc: 'Teppichmesser. +2 Rüstung, +20 LP, 10 % langsamer.' },
-    janitor: { name: 'Nachtreiniger', desc: 'Rutschgefahr. +25 % Sammelradius, -10 % Abklingzeit.' },
+    stocker: { name: 'Lagerist' },
+    cashier: { name: 'Kassiererin' },
+    security: { name: 'Security' },
+    janitor: { name: 'Nachtreiniger' },
   },
   meta: {
     seniority: { name: 'Betriebszugehörigkeit', desc: '+10 max. LP' },

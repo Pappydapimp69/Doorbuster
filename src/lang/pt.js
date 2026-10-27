@@ -67,10 +67,10 @@ export default {
     toys: { name: 'Brinquedos', desc: 'O corredor que todo pai teme. Libera depois de um turno completo em Eletrônicos.', boss: 'Dono da loja' },
   },
   characters: {
-    stocker: { name: 'Repositor', desc: 'Começa com a Etiquetadora. Equilibrado.' },
-    cashier: { name: 'Caixa', desc: 'Tempestade de cupons. +15% XP.' },
-    security: { name: 'Segurança', desc: 'Estilete. +2 armadura, +20 vida, 10% mais lento.' },
-    janitor: { name: 'Faxineiro noturno', desc: 'Piso molhado. +25% de coleta, -10% de recarga.' },
+    stocker: { name: 'Repositor' },
+    cashier: { name: 'Caixa' },
+    security: { name: 'Segurança' },
+    janitor: { name: 'Faxineiro noturno' },
   },
   meta: {
     seniority: { name: 'Tempo de casa', desc: '+10 de vida máxima' },

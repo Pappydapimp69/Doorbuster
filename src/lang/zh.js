@@ -67,10 +67,10 @@ export default {
     toys: { name: '玩具区', desc: '每个家长都害怕的通道。在电器区完整坚持一个班后解锁。', boss: '店老板' },
   },
   characters: {
-    stocker: { name: '理货员', desc: '初始武器为标价枪。稳定的全能型。' },
-    cashier: { name: '收银员', desc: '优惠券风暴。+15% 经验。' },
-    security: { name: '保安', desc: '美工刀。+2 护甲，+20 生命，速度 -10%。' },
-    janitor: { name: '夜班清洁工', desc: '小心地滑。+25% 拾取范围，-10% 冷却。' },
+    stocker: { name: '理货员' },
+    cashier: { name: '收银员' },
+    security: { name: '保安' },
+    janitor: { name: '夜班清洁工' },
   },
   meta: {
     seniority: { name: '资历', desc: '+10 最大生命' },

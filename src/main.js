@@ -215,6 +215,7 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
     nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
   };
+  if (CHARACTERS[charId].passive) G.passives[CHARACTERS[charId].passive] = 1;
   G.stats = computeStats();
   G.rerolls = G.stats.rerolls; G.revives = G.stats.revives;
   G.player.hp = G.stats.maxHp;
@@ -1762,7 +1763,7 @@ function showStaff(focusId) {
     <div class="grid" data-cols="2">${Object.entries(CHARACTERS).map(([id, c]) => {
       const own = save.unlocked[id], sel = save.selected === id;
       return `<button class="btn card${sel ? ' sel' : ''}" data-act="hire" data-arg="${id}">
-        <b>${T(`characters.${id}.name`)} ${ICONS[c.weapon]}</b><span>${T(`characters.${id}.desc`)}</span>
+        <b>${T(`characters.${id}.name`)} ${ICONS[c.weapon]}${c.passive ? ICONS[c.passive] : ''}</b><span>${T(`characters.${id}.desc`)}</span>
         <i>${DEMO && !DEMO_STAFF.includes(id) ? '🔒 ' + T('ui.fullGame') : sel ? T('ui.onShift') : own ? T('ui.select') : (staffEarned(id) ? `✅ Hire: 💰 ${c.cost}` : `🔒 ${c.earn.text} (${Math.min(staffStat(c.earn.stat), c.earn.need)}/${c.earn.need}) · 💰 ${c.cost}`)}</i></button>`;
     }).join('')}</div><button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
   refocus(focusId && `[data-arg="${focusId}"]`);
