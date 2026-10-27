@@ -183,7 +183,7 @@ export const EVOLUTIONS = {
     stats: { dmg: 24, cd: 0.9, count: 6, speed: 200 }, bounces: 9 },
   extinguisher: { needs: 'caution', name: 'Foam Party', desc: 'The spray leaves foam that glues shoppers in place.',
     stats: { dmg: 30, cd: 1.0, range: 100, width: 0.9, knock: 60, foam: 3 } },
-  barcode: { needs: 'energy', name: 'Self-Checkout', desc: 'A dashed scanner ring pulses out around you. Beep.',
+  barcode: { needs: 'energy', name: 'Self-Checkout', desc: 'Scanner beams sweep around you one after another. Beep.',
     stats: { dmg: 42, cd: 0.7, radius: 120, dashes: 12 } },
   wetFloor: { needs: 'lanyard', name: 'Flood Zone', desc: 'Somebody left the hose on.',
     stats: { dmg: 20, cd: 1.3, count: 6, size: 40, dur: 5 } },

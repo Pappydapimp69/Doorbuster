@@ -572,6 +572,18 @@ function dropGem(x, y, v) {
 }
 
 // ---------- weapons ----------
+// A straight scanner line: hits every shopper along it once, plus a short-lived visual.
+function fireBeam(x, y, ang, len, dmg, knock, life, src) {
+  G.fx.push({ kind: 'beam', x, y, ang, len, life, max: life, src });
+  const ux = Math.cos(ang), uy = Math.sin(ang);
+  for (const e of G.enemies) {
+    const dx = e.x - x, dy = e.y - y;
+    const along = dx * ux + dy * uy;
+    if (along < 0 || along > len) continue;
+    if (Math.abs(dx * uy - dy * ux) < 5 + e.r) damageEnemy(e, dmg, ux, uy, knock);
+  }
+}
+
 function closestEnemies(n, range = 260) {
   const p = G.player;
   const list = [];
@@ -639,24 +651,15 @@ function fireWeapon(w) {
     }
     case 'barcode': {
       if (w.evolved) {
-        // Self-Checkout: a dashed ring pulses out; shoppers under a dash are scanned, gaps miss.
-        G.fx.push({ kind: 'scan', x: p.x, y: p.y, r: 6, maxR: s.radius, life: 0.3, max: 0.3, dmg: s.dmg, dashes: s.dashes, rot: rand(0, Math.PI * 2), hits: new Set() });
+        // Self-Checkout: scanner beams fire one after another, stepping around you like a clock hand.
+        G.fx.push({ kind: 'sweep', life: 9, max: 9, k: 0, t: 0, step: Math.min(0.055, s.cd * 0.9 / s.dashes), dmg: s.dmg, len: s.radius, dashes: s.dashes, rot: rand(0, Math.PI * 2) });
         sfx('laser');
         return true;
       }
       const targets = closestEnemies(s.beams, 220);
       for (let i = 0; i < s.beams; i++) {
         const t = targets[i];
-        const ang = t ? Math.atan2(t.y - p.y, t.x - p.x) : rand(0, Math.PI * 2);
-        G.fx.push({ kind: 'beam', x: p.x, y: p.y, ang, len: s.length, life: 0.25, max: 0.25 });
-        const ux = Math.cos(ang), uy = Math.sin(ang);
-        for (const e of G.enemies) {
-          const dx = e.x - p.x, dy = e.y - p.y;
-          const along = dx * ux + dy * uy;
-          if (along < 0 || along > s.length) continue;
-          const perp = Math.abs(dx * uy - dy * ux);
-          if (perp < 5 + e.r) damageEnemy(e, s.dmg, ux, uy, 40);
-        }
+        fireBeam(p.x, p.y, t ? Math.atan2(t.y - p.y, t.x - p.x) : rand(0, Math.PI * 2), s.length, s.dmg, 40, 0.25);
       }
       sfx('laser');
       return true;
@@ -846,18 +849,14 @@ function updateProjectiles(dt) {
   for (const f of G.fx) {
     curSrc = f.src;
     f.life -= dt;
-    if (f.kind === 'scan') {
-      f.r = f.maxR * (1 - f.life / f.max);
-      nearby(f.x, f.y, f.r + 10, tmp);
-      const seg = (Math.PI * 2) / f.dashes;
-      for (const e of tmp) {
-        if (f.hits.has(e)) continue;
-        const d = Math.hypot(e.x - f.x, e.y - f.y);
-        if (Math.abs(d - f.r) > 8 + e.r) continue;
-        const a = ((Math.atan2(e.y - f.y, e.x - f.x) - f.rot) % seg + seg) % seg;
-        if (a > seg * 0.65) continue; // in a gap
-        f.hits.add(e); damageEnemy(e, f.dmg, 0, 0, 0);
+    if (f.kind === 'sweep') {
+      // Next beam of the lap, from wherever the player is now.
+      f.t -= dt;
+      while (f.t <= 0 && f.k < f.dashes) {
+        fireBeam(G.player.x, G.player.y, f.rot + (f.k / f.dashes) * Math.PI * 2, f.len, f.dmg, 0, 0.15, f.src);
+        f.k++; f.t += f.step;
       }
+      if (f.k >= f.dashes) f.life = 0;
     }
     if (f.kind === 'ring') {
       f.r = f.maxR * (1 - f.life / f.max);
@@ -1252,12 +1251,6 @@ function render() {
     if (f.kind === 'arc') {
       cx.strokeStyle = `rgba(255,255,255,${a})`; cx.lineWidth = 3;
       cx.beginPath(); cx.arc(f.x, f.y, f.range * (1.1 - a * 0.3), f.ang - 1.1, f.ang + 1.1); cx.stroke();
-    } else if (f.kind === 'scan') {
-      const seg = (Math.PI * 2) / f.dashes;
-      cx.strokeStyle = `rgba(255,40,40,${0.4 + a * 0.6})`; cx.lineWidth = 3;
-      for (let k = 0; k < f.dashes; k++) { cx.beginPath(); cx.arc(f.x, f.y, f.r, f.rot + k * seg, f.rot + k * seg + seg * 0.65); cx.stroke(); }
-      cx.strokeStyle = `rgba(255,220,220,${a})`; cx.lineWidth = 1;
-      for (let k = 0; k < f.dashes; k++) { cx.beginPath(); cx.arc(f.x, f.y, f.r, f.rot + k * seg, f.rot + k * seg + seg * 0.65); cx.stroke(); }
     } else if (f.kind === 'ring') {
       cx.strokeStyle = `rgba(255,220,90,${a})`; cx.lineWidth = 2;
       cx.beginPath(); cx.arc(f.x, f.y, f.r, 0, Math.PI * 2); cx.stroke();
