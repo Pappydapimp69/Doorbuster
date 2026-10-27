@@ -221,7 +221,7 @@ export const WAVES = [
 export const MAPS = {
   floor: {
     name: 'Main Floor', desc: 'Groceries, home goods, and 400 people who woke up at 3 AM for a toaster.',
-    tiles: ['#d8d5cc', '#cfccc2'], stripe: '#e6c84a', bg: '#c9c6bd', waves: WAVES, boss: 'Regional Manager', bossHp: 1, hpMul: 1, speedMul: 1, dmgMul: 1,
+    tiles: ['#d8d5cc', '#cfccc2'], stripe: '#e6c84a', bg: '#c9c6bd', layout: 'grocery', waves: WAVES, boss: 'Regional Manager', bossHp: 1, hpMul: 1, speedMul: 1, dmgMul: 1,
   },
   electronics: {
     name: 'Electronics', desc: 'TVs, consoles, and the people who camped in the parking lot for them. Unlocks after your first full shift.',

@@ -3,6 +3,7 @@ import {
   WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, EARNED, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY, RIOT,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
+import { buildStore, collide, clearLine, updateFlow, flowDir, walkable, inside } from './store.js';
 import { initAudio, sfx, startMusic, stopMusic, audio, setVolumes, currentSong } from './audio.js';
 import { loadSave, writeSave } from './save.js';
 import { unlockAchievement } from './steam.js';
@@ -215,6 +216,9 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
     nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
   };
+  // Departments with a floor plan are bounded stores with solid shelves.
+  G.store = buildStore(G.stage.layout);
+  if (G.store) { G.player.x = G.store.start.x; G.player.y = G.store.start.y; G.flowT = 0; updateFlow(G.store, G.player.x, G.player.y); }
   if (CHARACTERS[charId].passive) G.passives[CHARACTERS[charId].passive] = 1;
   G.stats = computeStats();
   G.rerolls = G.stats.rerolls; G.revives = G.stats.revives;
@@ -265,14 +269,29 @@ function spawnEnemy(type, ang = rand(0, Math.PI * 2), d = rand(270, 310)) {
   const def = ENEMIES[type];
   const p = G.player;
   const scale = def.boss ? 1 : hpScale() * G.stage.hpMul;
+  let x = p.x + Math.cos(ang) * d, y = p.y + Math.sin(ang) * d;
+  if (G.store) [x, y] = storeSpot(x, y, ang, d);
   const e = {
-    type, def, x: p.x + Math.cos(ang) * d, y: p.y + Math.sin(ang) * d,
+    type, def, x, y,
     hp: def.hp * scale, maxHp: def.hp * scale, speed: def.speed * rand(0.9, 1.1) * G.stage.speedMul, r: def.r,
     vx: 0, vy: 0, kx: 0, ky: 0, flash: 0, slow: 0, hit: {}, var: Math.floor(rng() * SHIRT_COUNT),
     t: rand(0, 3), charging: 0, cdx: 0, cdy: 0, dead: false, face: 1,
   };
   G.enemies.push(e);
   return e;
+}
+
+// In a store, a spawn or recycle spot must be on open floor: try nearby
+// angles at the same distance, then fall back to the nearest door.
+function storeSpot(x, y, ang, d) {
+  const s = G.store, p = G.player;
+  for (let k = 0; k < 12; k++) {
+    if (inside(s, x, y, 12) && walkable(s, x, y)) return [x, y];
+    const a = ang + (k % 2 ? 1 : -1) * Math.ceil((k + 1) / 2) * 0.35;
+    x = p.x + Math.cos(a) * d; y = p.y + Math.sin(a) * d;
+  }
+  const door = s.doors.reduce((b, o) => (dist2(o, p) < dist2(b, p) ? o : b));
+  return [door.x + rand(-30, 30), door.y - rand(0, 20)];
 }
 
 function director(dt) {
@@ -330,7 +349,8 @@ function spawnBoss(mult) {
 }
 
 function updateEnemies(dt) {
-  const p = G.player;
+  const p = G.player, st = G.store;
+  if (st && (G.flowT -= dt) <= 0) { G.flowT = 0.25; updateFlow(st, p.x, p.y); }
   for (const e of G.enemies) {
     if (e.marked > 0) e.marked -= dt;
     if (e.stunT > 0) { e.stunT -= dt; continue; } // Greeter's Welcome, Foam Party glue
@@ -343,6 +363,12 @@ function updateEnemies(dt) {
     dx /= d; dy /= d;
     let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (!e.def.scooter && onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1) * (G.rioting ? RIOT.speed : 1);
     let mx = dx, my = dy;
+    // In a store: chase straight when there's a clear path, else follow the flow field around shelves.
+    let fx = dx, fy = dy;
+    if (st) {
+      if (!(e.losT > e.t)) { e.losT = e.t + 0.3 + rng() * 0.1; e.los = d < 40 || clearLine(st, e.x, e.y, p.x, p.y, st.walk); }
+      if (!e.los) { const f = flowDir(st, e.x, e.y); if (f) { [fx, fy] = f; mx = fx; my = fy; } }
+    }
     // Plain shoppers go for nearby stock when the player isn't right on them.
     // Half the plain shoppers (and every kid in Toys) go for nearby stock.
     if (riotOn() && ((e.type === 'shopper' && e.var % 2 === 0) || e.type === 'kid') && d > 80) {
@@ -350,10 +376,12 @@ function updateEnemies(dt) {
       if (!(e.scanT > e.t)) { // look for stock about once a second, not every frame
         e.scanT = e.t + 1 + rng() * 0.5;
         e.shelf = null;
-        for (const sh of shelvesNear(e.x, e.y, RIOT.lureR)) if (sh.stock > 0.02 && (!e.shelf || dist2(sh, e) < dist2(e.shelf, e))) e.shelf = sh;
+        for (const sh of shelvesNear(e.x, e.y, RIOT.lureR)) if (sh.stock > 0.02 && (!e.shelf || shelfD2(sh, e) < shelfD2(e.shelf, e))) e.shelf = sh;
       }
       if (e.shelf) {
-        const sx = e.shelf.x - e.x, sy = e.shelf.y - e.y, sd = Math.hypot(sx, sy) || 1;
+        // Head for the near side of the shelf, not its middle.
+        const sh = e.shelf, tx = clamp(e.x, sh.rx + 6, sh.rx + sh.rw - 6), ty = e.y < sh.y ? sh.ry - 8 : sh.ry + sh.rh + 8;
+        const sx = tx - e.x, sy = ty - e.y, sd = Math.hypot(sx, sy) || 1;
         if (sd > 8) { mx = sx / sd; my = sy / sd; } else { mx = 0; my = 0; }
       }
     } else e.shelf = null;
@@ -374,7 +402,7 @@ function updateEnemies(dt) {
       // Drives like a scooter: always rolls forward along its heading and turns on an arc,
       // never in place. Close and lined up, it stops, revs for half a second, then dashes straight.
       if (e.hd === undefined) e.hd = Math.atan2(dy, dx);
-      const diff = ((Math.atan2(dy, dx) - e.hd + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      const diff = ((Math.atan2(fy, fx) - e.hd + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
       if (e.charging > 0) {
         // Speed comes from distance covered, not time: builds up over the gap to the player
         // (top speed right where they stood), then bleeds off over 60% of that. Heading stays locked.
@@ -389,11 +417,16 @@ function updateEnemies(dt) {
       } else if (e.windup > 0) {
         e.windup -= dt; sp = 0;
         if (rng() < 0.4) G.parts.push({ x: e.x - Math.cos(e.hd) * 8, y: e.y + 4, vx: -Math.cos(e.hd) * 30 + rand(-10, 10), vy: rand(-20, -5), life: 0.3, c: '#9a9a9a', float: true });
-        if (e.windup <= 0) { e.charging = 1; e.ds = 0; e.dashD = Math.max(30, d); }
+        if (e.windup <= 0) {
+          // Only dash if it can still see you and the run-up is clear: duck behind a shelf to call it off.
+          const D = Math.max(30, d), ex = e.x + Math.cos(e.hd) * D, ey = e.y + Math.sin(e.hd) * D;
+          if (!st || (clearLine(st, e.x, e.y, p.x, p.y) && clearLine(st, e.x, e.y, ex, ey, st.walk))) { e.charging = 1; e.ds = 0; e.dashD = D; }
+          else e.t = 0;
+        }
       } else {
         // Too close and facing away: drive on to make room instead of circling the player forever.
         if (!(d < 40 && Math.abs(diff) > 1.6)) e.hd += clamp(diff, -1.6 * dt, 1.6 * dt);
-        if (d < 120 && e.t > 0.6 && Math.abs(diff) < 0.3) e.windup = 0.5;
+        if (d < 120 && e.t > 0.6 && Math.abs(diff) < 0.3 && (!st || e.los)) e.windup = 0.5;
       }
       mx = Math.cos(e.hd); my = Math.sin(e.hd);
     }
@@ -413,6 +446,7 @@ function updateEnemies(dt) {
     if (d > 420 && !e.def.elite && !e.def.boss) {
       const a = Math.atan2(p.y - e.y, p.x - e.x) + rand(-0.5, 0.5);
       e.x = p.x + Math.cos(a) * 290; e.y = p.y + Math.sin(a) * 290;
+      if (st) [e.x, e.y] = storeSpot(e.x, e.y, a, 290);
       e.hd = undefined; e.windup = 0; e.charging = 0;
     }
   }
@@ -432,6 +466,10 @@ function updateEnemies(dt) {
         if (++n > 6) break;
       }
     }
+  }
+  // Shelves are solid. A scooter that rams one stops dead and is dazed for a moment.
+  if (st) for (const e of G.enemies) {
+    if (collide(st, e, e.r) && e.def.scooter && e.charging > 0) { e.charging = 0; e.t = 0; e.stunT = 0.6; e.kx = e.ky = 0; G.shake = Math.max(G.shake, 0.15); }
   }
   // Contact damage.
   if (p.inv <= 0) {
@@ -1049,6 +1087,7 @@ function updatePlayer(dt) {
   }
   const spd = G.stats.speed * (G.buffs.rush ? 1.5 : 1);
   p.x += mx * spd * dt; p.y += my * spd * dt;
+  if (G.store) collide(G.store, p, 5);
   p.inv = Math.max(0, p.inv - dt);
 }
 
@@ -1067,6 +1106,7 @@ function autoMove() {
     const mx = i === 16 ? 0 : Math.cos(a), my = i === 16 ? 0 : Math.sin(a);
     const x = p.x + mx * look, y = p.y + my * look;
     let score = 0;
+    if (G.store && (!walkable(G.store, x, y) || !walkable(G.store, p.x + mx * look * 0.5, p.y + my * look * 0.5))) score -= 30;
     for (const e of tmp) {
       const d = Math.hypot(e.x - x, e.y - y);
       if (d < 60) score -= (e.def.boss ? 4 : 1) * (60 - d) / 60 * (d < 14 ? 6 : 1);
@@ -1174,6 +1214,7 @@ function render() {
   drawFloor();
   cx.save();
   cx.translate(-camX, -camY);
+  if (G.store) drawSigns();
   for (const pd of G.puddles) {
     const a = Math.min(1, pd.life / 0.5, (pd.max - pd.life) / 0.2);
     cx.globalAlpha = 0.55 * a;
@@ -1318,7 +1359,13 @@ function drawPlayer() {
 // ---------- Restock or Riot ----------
 // A shelf's centre in world units for grid cell (gi, gj).
 const shelfPos = (gi, gj) => ({ x: (gi * RIOT.gridX + 4) * 24 + 24, y: (gj * RIOT.gridY + 3) * 24 + 12 });
+// Squared distance from a point to a shelf's footprint (0 if on it).
+function shelfD2(sh, o) {
+  const dx = Math.max(sh.rx - o.x, 0, o.x - (sh.rx + sh.rw)), dy = Math.max(sh.ry - o.y, 0, o.y - (sh.ry + sh.rh));
+  return dx * dx + dy * dy;
+}
 function shelvesNear(x, y, r) {
+  if (G.store) return G.store.gondolas.filter((g) => shelfD2(g, { x, y }) < r * r);
   const out = [];
   const gx0 = Math.floor((x - r) / (RIOT.gridX * 24)) - 1, gx1 = Math.floor((x + r) / (RIOT.gridX * 24)) + 1;
   const gy0 = Math.floor((y - r) / (RIOT.gridY * 24)) - 1, gy1 = Math.floor((y + r) / (RIOT.gridY * 24)) + 1;
@@ -1327,7 +1374,7 @@ function shelvesNear(x, y, r) {
     if (Math.abs(p.x - x) > r || Math.abs(p.y - y) > r) continue;
     const key = gi + ',' + gj;
     let sh = G.shelves.get(key);
-    if (!sh) G.shelves.set(key, (sh = { key, x: p.x, y: p.y, stock: 1, low: false, fill: 0 }));
+    if (!sh) G.shelves.set(key, (sh = { key, x: p.x, y: p.y, rx: p.x - 22, ry: p.y - 9, rw: 44, rh: 17, stock: 1, low: false, fill: 0 }));
     out.push(sh);
   }
   return out;
@@ -1342,14 +1389,14 @@ function updateShelves(dt) {
   let empties = 0;
   for (const sh of near) {
     // Shoppers crowding the shelf grab stock.
-    nearby(sh.x, sh.y, RIOT.grabR, tmp);
+    nearby(sh.x, sh.y, RIOT.grabR + sh.rw / 2, tmp);
     let n = 0;
-    for (const e of tmp) if (!e.def.boss && dist2(e, sh) < RIOT.grabR * RIOT.grabR) n++;
+    for (const e of tmp) if (!e.def.boss && shelfD2(sh, e) < 14 * 14) n++;
     if (n) sh.stock = Math.max(0, sh.stock - Math.min(RIOT.grabCap, n * RIOT.grabRate) * dt);
     if (sh.stock < 0.5) sh.low = true;
     // Restock: stand still right next to it.
     sh.fill = 0;
-    if (!p.moving && !G.dying && sh.stock < 1 && dist2(sh, p) < RIOT.restockR * RIOT.restockR) {
+    if (!p.moving && !G.dying && sh.stock < 1 && shelfD2(sh, p) < 12 * 12) {
       sh.stock = Math.min(1, sh.stock + RIOT.restockRate * G.stats.restock * (skill() === 'restock' ? 2 : 1) * dt);
       sh.fill = 1;
       if (sh.stock >= 1 && sh.low) {
@@ -1383,9 +1430,81 @@ function updateShelves(dt) {
   }
 }
 
+const COLORS = ['#e04848', '#4a90d9', '#f5d142', '#27ae60', '#e67e22', '#9b59b6'];
+const onCam = (r, m = 8) => r.x + r.w > camX - m && r.x < camX + W + m && r.y + r.h > camY - m && r.y < camY + H + m;
+
+// Store fixtures, top-down: walls, shelf runs (stocked by Restock or Riot),
+// produce bins, action-alley displays and checkout registers.
+function drawStore() {
+  const st = G.store;
+  for (const r of st.rects) {
+    if (!onCam(r)) continue;
+    const x = Math.round(r.x), y = Math.round(r.y);
+    if (r.type === 'wall') {
+      cx.fillStyle = '#3a3846'; cx.fillRect(x, y, r.w, r.h);
+      cx.fillStyle = '#2a2833'; cx.fillRect(x, r.coolers ? y + r.h - 6 : y, r.w, 6);
+      if (r.coolers) for (let k = Math.max(0, Math.floor((camX - x) / 30)); k * 30 < r.w && x + k * 30 < camX + W; k++) {
+        // Glass cooler doors with a strip of product behind them.
+        cx.fillStyle = '#9fd3e8'; cx.fillRect(x + k * 30 + 3, y + 8, 24, r.h - 16);
+        cx.fillStyle = COLORS[k % COLORS.length]; cx.fillRect(x + k * 30 + 6, y + 14, 18, 4); cx.fillRect(x + k * 30 + 6, y + 22, 18, 4);
+        cx.fillStyle = '#ffffff'; cx.fillRect(x + k * 30 + 25, y + 10, 1, r.h - 20);
+      }
+      if (r.doors) for (const d of st.doors) {
+        cx.fillStyle = '#9fd3e8'; cx.fillRect(Math.round(d.x - 40), y + 4, 80, r.h - 10);
+        cx.fillStyle = '#ffffff'; cx.fillRect(Math.round(d.x) - 1, y + 4, 2, r.h - 10);
+      }
+      continue;
+    }
+    cx.fillStyle = 'rgba(0,0,0,0.2)'; cx.fillRect(x + 2, y + r.h, r.w, 3);
+    cx.fillStyle = '#1b1a24'; cx.fillRect(x - 1, y - 1, r.w + 2, r.h + 2);
+    if (r.type === 'shelf') {
+      const sh = r.g;
+      cx.fillStyle = '#8a8f99'; cx.fillRect(x, y, r.w, r.h);
+      cx.fillStyle = '#5d626d'; cx.fillRect(x, y + (r.h >> 1), r.w, 1);
+      // Products on both faces, as many as the stock level.
+      const per = Math.floor((r.w - 4) / 4), n = Math.ceil(sh.stock * per);
+      for (let k = 0; k < n; k++) {
+        cx.fillStyle = COLORS[(k + sh.key.length * 3) % COLORS.length];
+        cx.fillRect(x + 2 + k * 4, y + 2, 3, (r.h >> 1) - 4);
+        cx.fillStyle = COLORS[(k * 2 + sh.key.length) % COLORS.length];
+        cx.fillRect(x + r.w - 5 - k * 4, y + (r.h >> 1) + 2, 3, (r.h >> 1) - 4);
+      }
+      if (sh.stock <= 0.02 && Math.floor(G.t * 4) % 2) { cx.fillStyle = '#ff3b3b'; cx.fillRect(x + r.w / 2 - 2, y - 10, 4, 6); cx.fillRect(x + r.w / 2 - 2, y - 3, 4, 2); }
+      if (sh.fill) {
+        cx.fillStyle = '#000'; cx.fillRect(x + r.w / 2 - 18, y - 6, 36, 4);
+        cx.fillStyle = '#7dff8a'; cx.fillRect(x + r.w / 2 - 17, y - 5, Math.round(34 * sh.stock), 2);
+      }
+    } else if (r.type === 'bin') {
+      cx.fillStyle = '#8a5a34'; cx.fillRect(x, y, r.w, r.h);
+      const PRODUCE = ['#e04848', '#4cd36a', '#f5d142', '#f08a24'];
+      cx.fillStyle = PRODUCE[r.hue];
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) cx.fillRect(x + 4 + i * 8 + (j & 1) * 3, y + 4 + j * 10, 6, 6);
+    } else if (r.type === 'display') {
+      cx.fillStyle = ['#d8433b', '#3a8fd9', '#f5d142'][r.hue]; cx.fillRect(x, y, r.w, r.h);
+      cx.fillStyle = '#f3f1ea'; cx.fillRect(x + 6, y + 6, r.w - 12, 10);
+      cx.fillStyle = '#1b1a24'; cx.fillRect(x + 10, y + 9, r.w - 20, 2); cx.fillRect(x + 10, y + 12, (r.w - 20) >> 1, 2);
+    } else if (r.type === 'register') {
+      cx.fillStyle = '#555a66'; cx.fillRect(x, y, r.w, r.h);
+      cx.fillStyle = '#1b1a24'; cx.fillRect(x + 3, y + 4, r.w - 6, 8);
+      cx.fillStyle = '#7dff8a'; cx.fillRect(x + 4, y + 5, r.w - 8, 3);
+      cx.fillStyle = '#e04848'; cx.fillRect(x + 6, y - 6, 4, 6); // lane light
+    }
+  }
+}
+
+function drawSigns() {
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  for (const sg of G.store.signs) {
+    if (Math.abs(sg.x - camX - W / 2) > W / 2 + 80 || Math.abs(sg.y - camY - H / 2) > H / 2 + 20) continue;
+    cx.font = sg.big ? 'bold 16px sans-serif' : 'bold 11px sans-serif';
+    cx.fillStyle = sg.big ? 'rgba(40,40,60,0.28)' : 'rgba(40,40,60,0.45)';
+    cx.fillText(sg.text, Math.round(sg.x), Math.round(sg.y));
+  }
+}
+
 function drawShelves() {
+  if (G.store) { drawStore(); return; }
   if (!riotOn()) return;
-  const COLORS = ['#e04848', '#4a90d9', '#f5d142', '#27ae60', '#e67e22', '#9b59b6'];
   for (const sh of shelvesNear(camX + W / 2, camY + H / 2, Math.max(W, H))) {
     const x = Math.round(sh.x - 22), y = Math.round(sh.y - 9);
     cx.fillStyle = 'rgba(0,0,0,0.2)'; cx.fillRect(x + 2, y + 16, 44, 3);
@@ -1412,7 +1531,10 @@ const TILE = 24;
 const tileHash = (i, j, salt = 0) => (((i * 374761393) ^ (j * 668265263) ^ (salt * 2246822519)) >>> 0) % 100000 / 100000;
 // A sale tag sits on tile (i, j) if the hash says so and nobody took it yet.
 function tagAt(i, j) {
-  if (Math.abs(i) + Math.abs(j) < 4) return false; // not under the player at the start
+  if (G.store) {
+    const x = i * TILE + 12, y = j * TILE + 12;
+    if (!inside(G.store, x, y, 16) || !walkable(G.store, x, y) || Math.hypot(x - G.store.start.x, y - G.store.start.y) < 100) return false;
+  } else if (Math.abs(i) + Math.abs(j) < 4) return false; // not under the player at the start
   return tileHash(i, j, 7) < POWERUP_DENSITY * G.stats.tagLuck && !G.usedTags.has(i + ',' + j);
 }
 // Coffee spills (the brown floor stains) slow shoppers who walk through them.
@@ -1472,16 +1594,17 @@ function drawTags() {
 }
 
 function drawFloor() {
-  const T = 24;
+  const T = 24, st = G.store;
   const x0 = Math.floor(camX / T), y0 = Math.floor(camY / T);
   for (let i = x0; i <= x0 + W / T + 1; i++) for (let j = y0; j <= y0 + H / T + 1; j++) {
     const sx = i * T - camX, sy = j * T - camY;
+    if (st && !inside(st, i * T + 12, j * T + 12)) { cx.fillStyle = '#26242e'; cx.fillRect(sx, sy, T, T); continue; }
     cx.fillStyle = G.stage.tiles[(i + j) & 1];
     cx.fillRect(sx, sy, T, T);
     const h = ((i * 374761393) ^ (j * 668265263)) >>> 0;
     const r = (h % 1000) / 1000;
     // Aisle stripes and the odd floor decal for texture.
-    if (((i % 12) + 12) % 12 === 0) { cx.fillStyle = G.stage.stripe; cx.fillRect(sx, sy, 2, T); }
+    if (!st && ((i % 12) + 12) % 12 === 0) { cx.fillStyle = G.stage.stripe; cx.fillRect(sx, sy, 2, T); }
     if (r >= 0.02 && r < 0.035) { cx.fillStyle = 'rgba(140,90,40,0.25)'; cx.beginPath(); cx.ellipse(sx + 12, sy + 12, 7, 4, 0, 0, Math.PI * 2); cx.fill(); }
     else if (r < 0.05) { cx.fillStyle = 'rgba(0,0,0,0.07)'; cx.fillRect(sx + 6, sy + 10, 9, 2); } // scuff (not white: receipts are)
   }
