@@ -186,7 +186,7 @@ export const EVOLUTIONS = {
   barcode: { needs: 'energy', name: 'Self-Checkout', desc: 'Scanner beams sweep around you one after another. Beep.',
     stats: { dmg: 42, cd: 0.7, radius: 120, dashes: 12 } },
   wetFloor: { needs: 'lanyard', name: 'Flood Zone', desc: 'Somebody left the hose on.',
-    stats: { dmg: 20, cd: 1.3, count: 6, size: 40, dur: 5 } },
+    stats: { dmg: 18, cd: 1.7, count: 4, size: 38, dur: 4.5 } },
 };
 
 export const ENEMIES = {
