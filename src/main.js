@@ -374,11 +374,21 @@ function updateEnemies(dt) {
       // never in place. Close and lined up, it stops, revs for half a second, then dashes straight.
       if (e.hd === undefined) e.hd = Math.atan2(dy, dx);
       const diff = ((Math.atan2(dy, dx) - e.hd + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      if (e.charging > 0) { e.charging -= dt; sp *= 3.4; if (e.charging <= 0) e.t = 0; }
-      else if (e.windup > 0) {
+      if (e.charging > 0) {
+        // Speed comes from distance covered, not time: builds up over the gap to the player
+        // (top speed right where they stood), then bleeds off over 60% of that. Heading stays locked.
+        const v0 = e.speed, vmax = SCOOTER_TOP, D = e.dashD;
+        const v = e.ds < D ? Math.sqrt(v0 * v0 + (vmax * vmax - v0 * v0) * e.ds / D)
+          : Math.sqrt(Math.max(0, vmax * vmax - (vmax * vmax - v0 * v0) * (e.ds - D) / (D * 0.6)));
+        if (e.ds >= D && v <= v0 + 0.5) { e.charging = 0; e.t = 0; }
+        else {
+          sp = v * (G.buffs.freeze ? 0 : 1); e.ds += sp * dt;
+          if (v > v0 * 1.8) scatterShoppers(e, v);
+        }
+      } else if (e.windup > 0) {
         e.windup -= dt; sp = 0;
         if (rng() < 0.4) G.parts.push({ x: e.x - Math.cos(e.hd) * 8, y: e.y + 4, vx: -Math.cos(e.hd) * 30 + rand(-10, 10), vy: rand(-20, -5), life: 0.3, c: '#9a9a9a', float: true });
-        if (e.windup <= 0) e.charging = 0.5;
+        if (e.windup <= 0) { e.charging = 1; e.ds = 0; e.dashD = Math.max(30, d); }
       } else {
         // Too close and facing away: drive on to make room instead of circling the player forever.
         if (!(d < 40 && Math.abs(diff) > 1.6)) e.hd += clamp(diff, -1.6 * dt, 1.6 * dt);
@@ -430,6 +440,24 @@ function updateEnemies(dt) {
       const rr = e.r + 5;
       if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * (e.charging > 0 && e.def.scooter ? 1.5 : 1) * G.stage.dmgMul * (G.rioting ? RIOT.dmg : 1) * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
     }
+  }
+}
+
+const SCOOTER_TOP = 130;
+
+// A dashing scooter shoves shoppers in its path aside: no damage, just a sideways bump.
+function scatterShoppers(e, v) {
+  const fx = Math.cos(e.hd), fy = Math.sin(e.hd);
+  nearby(e.x, e.y, e.r + 12, tmp);
+  for (const o of tmp) {
+    if (o === e || o.def.boss || o.def.scooter) continue;
+    const ox = o.x - e.x, oy = o.y - e.y, rr = e.r + o.r + 2;
+    if (ox * ox + oy * oy > rr * rr) continue;
+    if (o.bumpT > G.t) continue;
+    o.bumpT = G.t + 0.4;
+    const side = fx * oy - fy * ox >= 0 ? 1 : -1; // which side of the path they're on
+    const k = v * 1.6 * (1 - (o.def.knockResist || 0)) * rand(0.7, 1.3);
+    o.kx += (-fy * side * 0.85 + fx * 0.5) * k; o.ky += (fx * side * 0.85 + fy * 0.5) * k;
   }
 }
 
