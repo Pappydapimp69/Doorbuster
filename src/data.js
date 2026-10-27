@@ -158,6 +158,9 @@ export const PASSIVES = {
   lanyard: { name: 'Lanyard', icon: 'lanyard', desc: '+25% pickup range.', stat: 'magnet', per: 0.25 },
   overtime: { name: 'Overtime', icon: 'clock', desc: '+10% receipts (XP).', stat: 'xp', per: 0.10 },
   union: { name: 'Union Card', icon: 'card', desc: '+1 armor (less damage per hit).', stat: 'armor', per: 1 },
+  bogo: { name: 'Buy One Get One', icon: 'bogo', desc: '8% chance a weapon fires twice.', stat: 'bogo', per: 0.08 },
+  caution: { name: 'Caution Tape', icon: 'tape', desc: 'Slowed, frozen or knocked-back shoppers take +6% damage for 2s.', stat: 'caution', per: 0.06 },
+  couponBook: { name: 'Coupon Book', icon: 'book', desc: 'Price stickers and coupons bounce to 1 more shopper.', stat: 'bounce', per: 1 },
 };
 
 // Max-level weapon + owned passive = evolution, offered on a level-up.
@@ -172,6 +175,12 @@ export const EVOLUTIONS = {
     stats: { dmg: 42, cd: 0.8, count: 5, range: 160, speed: 270 } },
   alarm: { needs: 'union', name: 'Lockdown', desc: 'Every door in the store just locked.',
     stats: { dmg: 40, cd: 0.9, chains: 14 } },
+  couponStorm: { needs: 'couponBook', name: 'Extreme Couponing', desc: 'Coupons keep bouncing between shoppers, up to 10 hits each.',
+    stats: { dmg: 24, cd: 0.9, count: 6, speed: 200 }, bounces: 9 },
+  extinguisher: { needs: 'caution', name: 'Foam Party', desc: 'The spray leaves foam that glues shoppers in place.',
+    stats: { dmg: 30, cd: 1.0, range: 100, width: 0.9, knock: 60, foam: 3 } },
+  barcode: { needs: 'energy', name: 'Self-Checkout', desc: 'A dashed scanner ring pulses out around you. Beep.',
+    stats: { dmg: 42, cd: 0.7, radius: 120, dashes: 12 } },
   wetFloor: { needs: 'lanyard', name: 'Flood Zone', desc: 'Somebody left the hose on.',
     stats: { dmg: 20, cd: 1.3, count: 6, size: 40, dur: 5 } },
 };

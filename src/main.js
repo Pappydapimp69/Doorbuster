@@ -20,7 +20,7 @@ const ui = { hud: $('#hud'), screen: $('#screen'), banner: $('#banner') };
 const ICONS = {
   priceGun: '🏷️', boxCutter: '✂️', carts: '🛒', wetFloor: '💧', paSystem: '📢', couponStorm: '🎟️', barcode: '📟',
   giftCard: '🎁', extinguisher: '🧯', alarm: '🚨', chicken: '🍗',
-  shoes: '👟', energy: '🥤', nameTag: '📛', lanyard: '🪪', overtime: '⏰', union: '💳',
+  shoes: '👟', energy: '🥤', nameTag: '📛', lanyard: '🪪', overtime: '⏰', union: '💳', bogo: '➕', caution: '🚧', couponBook: '📒',
 };
 
 // Demo build (Steam Next Fest): ?demo in the browser, or DOORBUSTER_DEMO / demo.flag on desktop.
@@ -152,6 +152,7 @@ function computeStats() {
     if (p.stat === 'magnet') mag += p.per * lv;
     if (p.stat === 'xp') xp += p.per * lv;
     if (p.stat === 'armor') s.armor += p.per * lv;
+    if (p.stat === 'bogo' || p.stat === 'caution' || p.stat === 'bounce') s[p.stat] = (s[p.stat] || 0) + p.per * lv;
   }
   s.speed *= spd; s.magnet *= mag; s.cooldown = Math.min(cd, 0.6); s.xp = xp;
   return s;
@@ -330,7 +331,8 @@ function spawnBoss(mult) {
 function updateEnemies(dt) {
   const p = G.player;
   for (const e of G.enemies) {
-    if (e.stunT > 0) { e.stunT -= dt; continue; } // Greeter's Welcome
+    if (e.marked > 0) e.marked -= dt;
+    if (e.stunT > 0) { e.stunT -= dt; continue; } // Greeter's Welcome, Foam Party glue
     if (G.buffs.freeze && !e.def.boss) { e.flash = 0; e.kx *= 0.8; e.ky *= 0.8; continue; } // Price Freeze: no moving, shooting or summoning
     e.t += dt;
     e.flash = Math.max(0, e.flash - dt);
@@ -456,6 +458,7 @@ let curSrc = '?';
 function damageEnemy(e, dmg, kx, ky, knock) {
   if (e.dead) return;
   if (skill() === 'elite' && (e.def.elite || e.def.boss)) dmg *= 1.6;
+  if (G.stats.caution && (e.marked > 0 || e.slow > 0 || e.stunT > 0 || G.buffs.freeze)) dmg *= 1 + G.stats.caution; // Caution Tape
   if (curSrc !== 'powerup') dmg *= G.stats.dmg * (e.def.elite || e.def.boss ? G.stats.eliteDmg : 1);
   if (G.buffs.deal && curSrc !== 'powerup') dmg *= 2;
   G.dmgDealt[curSrc] = (G.dmgDealt[curSrc] || 0) + Math.min(dmg, Math.max(0, e.hp));
@@ -463,6 +466,7 @@ function damageEnemy(e, dmg, kx, ky, knock) {
   e.flash = 0.08;
   const res = e.def.knockResist || 0;
   e.kx += kx * knock * (1 - res); e.ky += ky * knock * (1 - res);
+  if (knock > 0 && (kx || ky)) e.marked = 2;
   if (save.settings.damageNumbers && G.texts.length < 40) {
     G.texts.push({ x: e.x + rand(-3, 3), y: e.y - e.r - 4, v: Math.round(dmg), life: 0.4, color: dmg >= 40 ? '#ffd23f' : '#ffffff' });
   }
@@ -577,6 +581,12 @@ function fireWeapon(w) {
       return true;
     }
     case 'barcode': {
+      if (w.evolved) {
+        // Self-Checkout: a dashed ring pulses out; shoppers under a dash are scanned, gaps miss.
+        G.fx.push({ kind: 'scan', x: p.x, y: p.y, r: 6, maxR: s.radius, life: 0.3, max: 0.3, dmg: s.dmg, dashes: s.dashes, rot: rand(0, Math.PI * 2), hits: new Set() });
+        sfx('laser');
+        return true;
+      }
       const targets = closestEnemies(s.beams, 220);
       for (let i = 0; i < s.beams; i++) {
         const t = targets[i];
@@ -615,6 +625,10 @@ function fireWeapon(w) {
         if (d > s.range + e.r) continue;
         let da = Math.atan2(dy, dx) - ang; da = Math.atan2(Math.sin(da), Math.cos(da));
         if (Math.abs(da) < s.width) { e.slow = 1.2; damageEnemy(e, s.dmg, dx / (d || 1), dy / (d || 1), s.knock); }
+      }
+      for (let k = 0; k < (s.foam || 0); k++) {
+        const a = ang + rand(-s.width, s.width) * 0.7, dd = s.range * (0.35 + 0.25 * k);
+        G.puddles.push({ x: p.x + Math.cos(a) * dd, y: p.y + Math.sin(a) * dd, r: 18 * G.stats.area, life: 3, max: 3, dmg: 4, tick: 0, foam: true });
       }
       for (let i = 0; i < 26; i++) {
         const a = ang + rand(-s.width, s.width), v = rand(0.4, 1) * s.range * 3;
@@ -680,7 +694,10 @@ function updateWeapons(dt) {
       curSrc = w.id;
       const n0 = [G.projs.length, G.fx.length, G.puddles.length, G.lobs.length];
       const fired = fireWeapon(w);
+      if (fired && G.stats.bogo && rng() < G.stats.bogo) fireWeapon(w); // Buy One Get One
       [G.projs, G.fx, G.puddles, G.lobs].forEach((list, i) => { for (let k = n0[i]; k < list.length; k++) list[k].src = w.id; });
+      // Coupon Book bounces; Extreme Couponing coupons bounce up to 10 hits.
+      for (let k = n0[0]; k < G.projs.length; k++) G.projs[k].bounces = (G.stats.bounce || 0) + (w.evolved && EVOLUTIONS[w.id].bounces || 0);
       w.cd = fired ? s.cd * (1 - G.stats.cooldown) : 0.1;
     }
   }
@@ -725,6 +742,18 @@ function updateProjectiles(dt) {
         const sp = Math.hypot(pr.vx, pr.vy) || 1;
         damageEnemy(e, pr.dmg, pr.vx / sp, pr.vy / sp, 50);
         pr.target = null;
+        if (pr.bounces > 0 && pr.kind !== 'card') {
+          // Bounce to the nearest shopper it hasn't hit yet.
+          let next = null, nd = 130 * 130;
+          nearby(pr.x, pr.y, 130, tmp2);
+          for (const o of tmp2) { if (o.dead || pr.hits.has(o)) continue; const d2 = dist2(o, pr); if (d2 < nd) { nd = d2; next = o; } }
+          if (next) {
+            pr.bounces--; pr.life = Math.max(pr.life, 0.8);
+            const a = Math.atan2(next.y - pr.y, next.x - pr.x);
+            pr.vx = Math.cos(a) * sp; pr.vy = Math.sin(a) * sp;
+            break;
+          }
+        }
         if (--pr.pierce <= 0) { pr.life = 0; break; }
       }
     }
@@ -758,6 +787,19 @@ function updateProjectiles(dt) {
   for (const f of G.fx) {
     curSrc = f.src;
     f.life -= dt;
+    if (f.kind === 'scan') {
+      f.r = f.maxR * (1 - f.life / f.max);
+      nearby(f.x, f.y, f.r + 10, tmp);
+      const seg = (Math.PI * 2) / f.dashes;
+      for (const e of tmp) {
+        if (f.hits.has(e)) continue;
+        const d = Math.hypot(e.x - f.x, e.y - f.y);
+        if (Math.abs(d - f.r) > 8 + e.r) continue;
+        const a = ((Math.atan2(e.y - f.y, e.x - f.x) - f.rot) % seg + seg) % seg;
+        if (a > seg * 0.65) continue; // in a gap
+        f.hits.add(e); damageEnemy(e, f.dmg, 0, 0, 0);
+      }
+    }
     if (f.kind === 'ring') {
       f.r = f.maxR * (1 - f.life / f.max);
       for (const q of G.eprojs) if (q.kind === 'coupon' && dist2(q, f) < f.r * f.r) q.life = 0;
@@ -777,7 +819,11 @@ function updateProjectiles(dt) {
     if (pd.tick <= 0) {
       pd.tick = 0.4;
       nearby(pd.x, pd.y, pd.r, tmp);
-      for (const e of tmp) if (dist2(e, pd) < pd.r * pd.r) { e.slow = 0.6; damageEnemy(e, pd.dmg, 0, 0, 0); }
+      for (const e of tmp) if (dist2(e, pd) < pd.r * pd.r) {
+        e.slow = 0.6;
+        if (pd.foam && !e.def.boss) e.stunT = Math.max(e.stunT || 0, 0.5); // glued
+        damageEnemy(e, pd.dmg, 0, 0, 0);
+      }
     }
   }
   G.puddles = G.puddles.filter((q) => q.life > 0);
@@ -885,7 +931,8 @@ function choiceInfo(c) {
       : { icon: ICONS[c.id], title: name, tag: T('ui.tagNew'), text: T(`weapons.${c.id}.desc`) };
   }
   const lv = G.passives[c.id];
-  return { icon: ICONS[c.id], title: T(`passives.${c.id}.name`), tag: lv ? T('ui.tagLv', { n: lv + 1 }) : T('ui.tagNew'), text: T(`passives.${c.id}.desc`) };
+  const evo = Object.entries(EVOLUTIONS).filter(([, e]) => e.needs === c.id).map(([wid]) => T(`weapons.${wid}.name`));
+  return { icon: ICONS[c.id], title: T(`passives.${c.id}.name`), tag: lv ? T('ui.tagLv', { n: lv + 1 }) : T('ui.tagNew'), text: T(`passives.${c.id}.desc`) + (evo.length ? ` · Evolves: ${evo.join(', ')}` : '') };
 }
 
 function applyChoice(c) {
@@ -1062,7 +1109,7 @@ function render() {
   for (const pd of G.puddles) {
     const a = Math.min(1, pd.life / 0.5, (pd.max - pd.life) / 0.2);
     cx.globalAlpha = 0.55 * a;
-    cx.fillStyle = '#5fb6f0';
+    cx.fillStyle = pd.foam ? '#f4f7ff' : '#5fb6f0';
     cx.beginPath(); cx.ellipse(pd.x, pd.y, pd.r, pd.r * 0.6, 0, 0, Math.PI * 2); cx.fill();
     cx.globalAlpha = 0.8 * a; cx.fillStyle = '#d9f1ff';
     cx.fillRect(Math.round(pd.x - pd.r * 0.4), Math.round(pd.y - pd.r * 0.2), 3, 1);
@@ -1127,6 +1174,12 @@ function render() {
     if (f.kind === 'arc') {
       cx.strokeStyle = `rgba(255,255,255,${a})`; cx.lineWidth = 3;
       cx.beginPath(); cx.arc(f.x, f.y, f.range * (1.1 - a * 0.3), f.ang - 1.1, f.ang + 1.1); cx.stroke();
+    } else if (f.kind === 'scan') {
+      const seg = (Math.PI * 2) / f.dashes;
+      cx.strokeStyle = `rgba(255,40,40,${0.4 + a * 0.6})`; cx.lineWidth = 3;
+      for (let k = 0; k < f.dashes; k++) { cx.beginPath(); cx.arc(f.x, f.y, f.r, f.rot + k * seg, f.rot + k * seg + seg * 0.65); cx.stroke(); }
+      cx.strokeStyle = `rgba(255,220,220,${a})`; cx.lineWidth = 1;
+      for (let k = 0; k < f.dashes; k++) { cx.beginPath(); cx.arc(f.x, f.y, f.r, f.rot + k * seg, f.rot + k * seg + seg * 0.65); cx.stroke(); }
     } else if (f.kind === 'ring') {
       cx.strokeStyle = `rgba(255,220,90,${a})`; cx.lineWidth = 2;
       cx.beginPath(); cx.arc(f.x, f.y, f.r, 0, Math.PI * 2); cx.stroke();
