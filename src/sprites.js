@@ -55,6 +55,22 @@ const MAPS = {
     '.gg......gg.',
     '.ww......ww.',
   ],
+  scooter: [
+    '...hhhh.........',
+    '..hhhhhh........',
+    '..ssssss........',
+    '..skssks.....kk.',
+    '..ssssss.....k..',
+    '...ssss.....kk..',
+    '.cccccccc...k...',
+    'ccccccccc..kk...',
+    'cccccssssskk....',
+    '.RRbbbbbbRRRR...',
+    'RRRRRRRRRRRRRRR.',
+    'RRGRRRRRRRRRGRRR',
+    '.kkk.......kkk..',
+    '.kkk.......kkk..',
+  ],
   cartPusher: [
     '..hhhh..........',
     '.hhhhhh.........',
@@ -251,12 +267,12 @@ export function buildSprites(characters) {
     SPR['worker_' + id] = render(MAPS.worker, { v: ch.vest });
     SPR['worker_' + id + '_b'] = render(stride(MAPS.worker), { v: ch.vest });
   }
-  for (const kind of ['shopper', 'walker', 'clipper', 'cartPusher', 'scalper', 'camper', 'kid', 'hoarder']) {
+  for (const kind of ['shopper', 'walker', 'clipper', 'cartPusher', 'scalper', 'camper', 'kid', 'hoarder', 'scooter']) {
     SPR[kind] = [];
     SPR[kind + '_b'] = [];
     for (let i = 0; i < SHIRTS.length; i++) {
       SPR[kind].push(render(MAPS[kind], { c: SHIRTS[i], h: HAIRS[i % HAIRS.length] }));
-      SPR[kind + '_b'].push(render(kind === 'camper' ? MAPS[kind] : stride(MAPS[kind]), { c: SHIRTS[i], h: HAIRS[i % HAIRS.length] }));
+      SPR[kind + '_b'].push(render(kind === 'camper' || kind === 'scooter' ? MAPS[kind] : stride(MAPS[kind]), { c: SHIRTS[i], h: HAIRS[i % HAIRS.length] }));
     }
   }
   SPR.requester = [render(MAPS.requester, {})];

@@ -1,1 +1,5 @@
 # LOCAL IDEAS
+
+## [GAME-DESIGN / survivor-like / anti-turtle-enemy / an-enemy-immune-to-area-denial-that-closes-in-bursts-keeps-the-player-moving]
+
+In a survivors-like, area-denial effects (puddles that slow every enemy, a knockback aura) stack late in a run into a wall no enemy can cross, so the best play is to stand still and the map stops mattering. Counter with one enemy built against the wall rather than nerfing the tools: immune to the slows and puddles, high knockback resistance, slightly slower than a basic enemy at range so it reads as harmless, then once close it closes the gap in short straight bursts with a brief pause to re-aim, and its ram does extra contact damage. The bursts are dodgeable by a small step sideways, so the fix rewards moving a little rather than punishing the build. Keep it milder than the boss dash so the boss stays the big moment, and add it from mid-run so early runs teach the area tools first. Source: Doorbuster Scooter Shopper, owner request, session_01KrodsSvxuwkznLqFRrGnZ8.

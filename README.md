@@ -5,7 +5,7 @@ the only one working the floor. Weapons fire on their own; you move, level up,
 and survive until 11:00 AM.
 
 - 10-minute runs (a 6-hour shift), 11 weapons, 9 passives, 11 evolutions (every weapon evolves)
-- 9 shopper types, elite "Manager Requesters", three managers to beat
+- 10 shopper types (Scooter Shoppers ignore puddles and ram in bursts), elite "Manager Requesters", three managers to beat
 - Three departments: Main Floor, Electronics (unlocks after a full shift), Toys (unlocks after a shift in Electronics)
 - Four weapons unlock at milestones; Inventory screen with records and evolution recipes
 - Restock or Riot: shoppers strip shelves, empty shelves fill a riot meter, stand still to restock for tips

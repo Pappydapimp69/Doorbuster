@@ -199,6 +199,8 @@ export const ENEMIES = {
   camper:    { name: 'Line Camper', hp: 90, speed: 16, dmg: 10, xp: 4, r: 9, sprite: 'camper', knockResist: 0.7, splits: 3 },
   kid:       { name: 'Sugar Rush Kid', hp: 7, speed: 84, dmg: 3, xp: 1, r: 4, sprite: 'kid' },
   hoarder:   { name: 'Toy Hoarder', hp: 70, speed: 24, dmg: 11, xp: 4, r: 8, sprite: 'hoarder', knockResist: 0.6 },
+  // Ignores puddles and spills; rams in short straight bursts once close, so standing behind a puddle wall stops working.
+  scooter:   { name: 'Scooter Shopper', hp: 60, speed: 28, dmg: 12, xp: 4, r: 8, sprite: 'scooter', scooter: true, knockResist: 0.85 },
   boss:      { name: 'Regional Manager', hp: 6000, speed: 28, dmg: 25, xp: 0, r: 16, sprite: 'boss', boss: true, knockResist: 1 },
 };
 
@@ -208,12 +210,12 @@ export const WAVES = [
   { shopper: 3, walker: 1 },
   { shopper: 4, walker: 2, clipper: 1 },
   { shopper: 3, walker: 2, clipper: 1, cart: 1 },
-  { shopper: 3, walker: 3, clipper: 1, cart: 1 },
-  { shopper: 3, walker: 3, clipper: 1, cart: 2 },
-  { shopper: 2, walker: 4, clipper: 2, cart: 2 },
-  { shopper: 1, walker: 4, clipper: 3, cart: 3 },
-  { shopper: 1, walker: 4, clipper: 3, cart: 3 },
-  { shopper: 1, walker: 3, clipper: 2, cart: 2 },
+  { shopper: 3, walker: 3, clipper: 1, cart: 1, scooter: 1 },
+  { shopper: 3, walker: 3, clipper: 1, cart: 2, scooter: 1 },
+  { shopper: 2, walker: 4, clipper: 2, cart: 2, scooter: 1 },
+  { shopper: 1, walker: 4, clipper: 3, cart: 3, scooter: 2 },
+  { shopper: 1, walker: 4, clipper: 3, cart: 3, scooter: 2 },
+  { shopper: 1, walker: 3, clipper: 2, cart: 2, scooter: 2 },
 ];
 
 export const MAPS = {
@@ -229,12 +231,12 @@ export const MAPS = {
       { shopper: 2, walker: 2, scalper: 1 },
       { shopper: 2, walker: 2, scalper: 1, camper: 1 },
       { shopper: 2, walker: 3, scalper: 2, camper: 1 },
-      { shopper: 2, walker: 3, scalper: 2, camper: 1, cart: 1 },
-      { shopper: 1, walker: 3, scalper: 2, camper: 2, cart: 1 },
-      { shopper: 1, walker: 4, scalper: 2, camper: 2, cart: 2 },
-      { shopper: 1, walker: 4, scalper: 3, camper: 2, cart: 2 },
-      { shopper: 1, walker: 4, scalper: 3, camper: 3, cart: 2 },
-      { shopper: 1, walker: 3, scalper: 2, camper: 2, cart: 2 },
+      { shopper: 2, walker: 3, scalper: 2, camper: 1, cart: 1, scooter: 1 },
+      { shopper: 1, walker: 3, scalper: 2, camper: 2, cart: 1, scooter: 1 },
+      { shopper: 1, walker: 4, scalper: 2, camper: 2, cart: 2, scooter: 2 },
+      { shopper: 1, walker: 4, scalper: 3, camper: 2, cart: 2, scooter: 2 },
+      { shopper: 1, walker: 4, scalper: 3, camper: 3, cart: 2, scooter: 3 },
+      { shopper: 1, walker: 3, scalper: 2, camper: 2, cart: 2, scooter: 3 },
     ],
   },
 };
@@ -247,12 +249,12 @@ MAPS.toys = {
     { shopper: 2, kid: 3, walker: 1 },
     { shopper: 2, kid: 3, hoarder: 1, clipper: 1 },
     { shopper: 2, kid: 4, hoarder: 1, clipper: 1, walker: 1 },
-    { shopper: 1, kid: 4, hoarder: 2, clipper: 1, walker: 2 },
-    { shopper: 1, kid: 5, hoarder: 2, scalper: 1, walker: 2 },
-    { shopper: 1, kid: 5, hoarder: 2, scalper: 2, cart: 1 },
-    { shopper: 1, kid: 6, hoarder: 3, scalper: 2, cart: 2 },
-    { shopper: 1, kid: 6, hoarder: 3, scalper: 2, cart: 2 },
-    { shopper: 1, kid: 5, hoarder: 2, scalper: 2, cart: 2 },
+    { shopper: 1, kid: 4, hoarder: 2, clipper: 1, walker: 2, scooter: 1 },
+    { shopper: 1, kid: 5, hoarder: 2, scalper: 1, walker: 2, scooter: 1 },
+    { shopper: 1, kid: 5, hoarder: 2, scalper: 2, cart: 1, scooter: 2 },
+    { shopper: 1, kid: 6, hoarder: 3, scalper: 2, cart: 2, scooter: 2 },
+    { shopper: 1, kid: 6, hoarder: 3, scalper: 2, cart: 2, scooter: 3 },
+    { shopper: 1, kid: 5, hoarder: 2, scalper: 2, cart: 2, scooter: 3 },
   ],
 };
 

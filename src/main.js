@@ -340,7 +340,7 @@ function updateEnemies(dt) {
     let dx = p.x - e.x, dy = p.y - e.y;
     const d = Math.hypot(dx, dy) || 1;
     dx /= d; dy /= d;
-    let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1) * (G.rioting ? RIOT.speed : 1);
+    let sp = e.speed * (e.slow > 0 ? 0.5 : 1) * (!e.def.scooter && onSpill(e.x, e.y) ? 0.6 : 1) * (G.buffs.freeze && !e.def.boss ? 0 : 1) * (G.rioting ? RIOT.speed : 1);
     let mx = dx, my = dy;
     // Plain shoppers go for nearby stock when the player isn't right on them.
     // Half the plain shoppers (and every kid in Toys) go for nearby stock.
@@ -369,6 +369,12 @@ function updateEnemies(dt) {
       if (e.charging > 0) { e.charging -= dt; mx = e.cdx; my = e.cdy; sp = e.speed * 4; }
       else if (e.t > 4 && d < 160) { e.t = 0; e.charging = 0.7; e.cdx = dx; e.cdy = dy; }
     }
+    if (e.def.scooter && d < 120) {
+      // Close in: straight-line bursts, re-aimed after a short rev between them.
+      if (e.charging > 0) { e.charging -= dt; mx = e.cdx; my = e.cdy; sp *= 3.4; if (e.charging <= 0) e.t = 0; }
+      else if (e.t > 0.45) { e.charging = 0.5; e.cdx = dx; e.cdy = dy; e.face = dx > 0 ? 1 : -1; }
+      else sp *= 0.4;
+    } else if (e.def.scooter && e.charging > 0) { e.charging -= dt; mx = e.cdx; my = e.cdy; sp *= 3.4; }
     if (e.type === 'requester' && e.t > 8) {
       e.t = 0;
       for (let i = 0; i < 3; i++) {
@@ -379,7 +385,7 @@ function updateEnemies(dt) {
     e.vx = mx * sp; e.vy = my * sp;
     e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
     e.kx *= Math.pow(0.002, dt); e.ky *= Math.pow(0.002, dt);
-    if (Math.abs(dx) > 0.1) e.face = dx > 0 ? 1 : -1;
+    if (Math.abs(dx) > 0.1 && !(e.def.scooter && e.charging > 0)) e.face = dx > 0 ? 1 : -1;
     // Recycle shoppers that fall far behind so the crowd stays around you.
     if (d > 420 && !e.def.elite && !e.def.boss) {
       const a = Math.atan2(p.y - e.y, p.x - e.x) + rand(-0.5, 0.5);
@@ -409,7 +415,7 @@ function updateEnemies(dt) {
     for (const e of tmp) {
       if (G.buffs.freeze && !e.def.boss) continue;
       const rr = e.r + 5;
-      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * G.stage.dmgMul * (G.rioting ? RIOT.dmg : 1) * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
+      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * (e.charging > 0 && e.def.scooter ? 1.5 : 1) * G.stage.dmgMul * (G.rioting ? RIOT.dmg : 1) * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
     }
   }
 }
@@ -830,7 +836,7 @@ function updateProjectiles(dt) {
     if (pd.tick <= 0) {
       pd.tick = 0.4;
       nearby(pd.x, pd.y, pd.r, tmp);
-      for (const e of tmp) if (dist2(e, pd) < pd.r * pd.r) {
+      for (const e of tmp) if (!e.def.scooter && dist2(e, pd) < pd.r * pd.r) {
         e.slow = 0.6;
         if (pd.foam && !e.def.boss) e.stunT = Math.max(e.stunT || 0, 0.5); // glued
         damageEnemy(e, pd.dmg, 0, 0, 0);
