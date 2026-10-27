@@ -12,7 +12,7 @@ and survive until 11:00 AM.
 - Sale tags on the floor give random power-ups; coffee spills slow shoppers
 - Endless Overtime after a win; timed events (Doorbuster Rush, Flash Sales)
 - Break Room meta upgrades and 4 unlockable staff, paid in tips
-- Keyboard, mouse and gamepad (Steam Deck friendly); all sound synthesized, no assets to license
+- Keyboard, mouse, gamepad (Steam Deck friendly) and touch (floating stick); all sound synthesized, no assets to license
 - 10 Steam achievements wired through steamworks.js
 - English, 简体中文, Русский, Español, Português (Brasil), Deutsch — follows Steam's language, switchable in Settings
 - Demo mode for Steam Next Fest (`?demo`, `npm run demo`, or a `demo.flag` file in the build's resources)

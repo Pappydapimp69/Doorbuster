@@ -164,6 +164,44 @@ function refreshStats() {
   G.player.hp = Math.min(G.player.hp, G.stats.maxHp);
 }
 
+// ---------- touch ----------
+// Floating stick: put a thumb down anywhere on the game and drag. Touch mode
+// turns on at the first real touch (pointerType), not from feature sniffing.
+const touch = { on: false, active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
+const stickEl = document.getElementById('stick'), knobEl = document.getElementById('knob'), tpauseEl = document.getElementById('tpause');
+const STICK_R = 50;
+function touchMode() {
+  if (touch.on) return;
+  touch.on = true;
+  document.body.classList.add('touch');
+}
+const stage = document.getElementById('stage');
+stage.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return;
+  touchMode(); ensureAudio();
+  if (state !== 'play' || touch.id !== null || e.target.closest('#screen .btn, #tpause')) return;
+  touch.id = e.pointerId; touch.active = true; touch.ox = e.clientX; touch.oy = e.clientY; touch.x = touch.y = 0;
+  stickEl.hidden = false;
+  stickEl.style.left = e.clientX + 'px'; stickEl.style.top = e.clientY + 'px';
+  knobEl.style.transform = 'translate(-50%, -50%)';
+  e.preventDefault();
+});
+addEventListener('pointermove', (e) => {
+  if (e.pointerId !== touch.id) return;
+  let dx = e.clientX - touch.ox, dy = e.clientY - touch.oy;
+  const d = Math.hypot(dx, dy);
+  if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
+  touch.x = d < 6 ? 0 : dx / STICK_R; touch.y = d < 6 ? 0 : dy / STICK_R;
+  knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+});
+const endTouch = (e) => {
+  if (e.pointerId !== touch.id) return;
+  touch.id = null; touch.active = false; touch.x = touch.y = 0; stickEl.hidden = true;
+};
+addEventListener('pointerup', endTouch);
+addEventListener('pointercancel', endTouch);
+tpauseEl.addEventListener('click', () => pause());
+
 // ---------- run setup ----------
 function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, map = save.map || 'floor') {
   rng = mulberry32(seed);
@@ -881,6 +919,7 @@ function updatePlayer(dt) {
   if (keys.has('KeyD') || keys.has('ArrowRight')) mx += 1;
   const pad = G.pad || { x: 0, y: 0 };
   if (pad.x || pad.y) { mx = pad.x; my = pad.y; }
+  if (touch.active) { mx = touch.x; my = touch.y; }
   if (autopilot) [mx, my] = autoMove();
   if (G.dying) { mx = 0; my = 0; }
   const m = Math.hypot(mx, my);
@@ -1357,6 +1396,8 @@ function renderReceiptLabel() {
 
 function renderHud() {
   renderReceiptLabel();
+  tpauseEl.hidden = !(touch.on && G && state === 'play');
+  if (state !== 'play' && touch.active) { touch.id = null; touch.active = false; touch.x = touch.y = 0; stickEl.hidden = true; }
   if (!G || state === 'menu') { ui.hud.style.display = 'none'; return; }
   ui.hud.style.display = '';
   const w = G.weapons.map((x) => `<span class="slot${x.evolved ? ' evo' : ''}">${ICONS[x.id]}<b>${x.evolved ? '★' : x.lv}</b></span>`).join('');
@@ -1634,7 +1675,7 @@ function startRun(charId, seed, map) {
   announce(T('ui.doorsOpen'), true);
   if (!save.tutorialSeen) {
     const tip = $('#tip');
-    tip.textContent = T('ui.tutorial'); tip.className = 'show';
+    tip.textContent = touch.on ? T('ui.tutorialTouch') : T('ui.tutorial'); tip.className = 'show';
     setTimeout(() => (tip.className = ''), 9000);
     save.tutorialSeen = true; writeSave(save);
   }

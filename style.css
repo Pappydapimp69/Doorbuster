@@ -117,3 +117,12 @@ h2 .tips { font-size: 18px; color: var(--yellow); margin-left: 8px; }
 /* Break Room: title, tips and tabs stay at the top; details and Back stay at the bottom. */
 .screenhead { position: sticky; top: -16px; z-index: 2; display: grid; justify-items: center; gap: 6px; width: min(800px, 98vw); padding: 10px 0 8px; background: rgba(10, 10, 16, .96); border-bottom: 2px solid var(--edge); }
 .screenfoot { position: sticky; bottom: -16px; z-index: 2; display: grid; justify-items: center; gap: 6px; width: min(800px, 98vw); padding: 8px 0 10px; background: rgba(10, 10, 16, .96); border-top: 2px solid var(--edge); }
+
+/* Touch: the game area never scrolls or zooms; menus still scroll vertically. */
+#stage { touch-action: none; }
+#screen { touch-action: pan-y; }
+#stick { position: fixed; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; background: rgba(255,255,255,.12); border: 3px solid rgba(255,255,255,.35); pointer-events: none; z-index: 5; }
+#knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; border-radius: 50%; background: rgba(245,209,66,.8); border: 3px solid #000; transform: translate(-50%, -50%); }
+#tpause { position: fixed; bottom: calc(12px + env(safe-area-inset-bottom)); right: calc(12px + env(safe-area-inset-right)); width: 44px; height: 44px; border-radius: 10px; border: 2px solid #000; background: rgba(0,0,0,.6); color: var(--ink); font-size: 20px; z-index: 5; }
+body.touch .ptile { min-height: 64px; }
+body.touch .hint { display: none; }

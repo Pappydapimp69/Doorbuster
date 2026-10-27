@@ -38,6 +38,7 @@ const UI = {
   unlock: { bestTime: 'Survive {n} minutes', totalKills: 'Handle {n} shoppers in total', bestLevel: 'Reach level {n}', bossKills: 'Defeat a manager' },
   tutorial: 'Move with WASD, arrows or a stick. Your weapons fire on their own. Walk over the paper receipts shoppers drop to level up. No button needed.',
   receiptLabel: 'RECEIPT: walk over it',
+  tutorialTouch: 'Put your thumb down anywhere and drag to move. Your weapons fire on their own. Walk over the paper receipts shoppers drop to level up.',
   fullscreen: 'Toggle fullscreen',
   surviveIn: 'Survive a shift in {map}',
   riot: 'RIOT! THE SHELVES ARE EMPTY. TIPS PAY DOUBLE.',
