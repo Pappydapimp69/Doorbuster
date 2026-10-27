@@ -551,7 +551,7 @@ function hurtPlayer(raw, src = '?') {
 
 let curSrc = '?';
 function damageEnemy(e, dmg, kx, ky, knock) {
-  if (e.dead || e.entering) return; // still coming through the doors: no off-screen receipt piles at the entrance
+  if (e.dead || e.entering || !onScreen(e, e.r)) return; // off screen or still coming through the doors: no hidden receipt piles
   if (skill() === 'elite' && (e.def.elite || e.def.boss)) dmg *= 1.6;
   if (G.stats.caution && (e.marked > 0 || e.slow > 0 || e.stunT > 0 || G.buffs.freeze)) dmg *= 1 + G.stats.caution; // Caution Tape
   if (curSrc !== 'powerup') dmg *= G.stats.dmg * (e.def.elite || e.def.boss ? G.stats.eliteDmg : 1);
@@ -631,11 +631,14 @@ function fireBeam(x, y, ang, len, dmg, knock, life, src) {
   }
 }
 
+// The camera is centred on the player: attacks only ever reach what's on screen.
+const onScreen = (o, m = 0) => Math.abs(o.x - G.player.x) < W / 2 + m && Math.abs(o.y - G.player.y) < H / 2 + m;
+
 function closestEnemies(n, range = 260) {
   const p = G.player;
   const list = [];
   for (const e of G.enemies) {
-    if (e.dead || e.entering) continue;
+    if (e.dead || e.entering || !onScreen(e)) continue;
     const d = dist2(e, p);
     if (d < range * range) list.push([d, e]);
   }
@@ -753,7 +756,7 @@ function fireWeapon(w) {
         damageEnemy(cur, s.dmg, 0, 0, 0);
         let best = null, bd = 85 * 85;
         nearby(cur.x, cur.y, 85, tmp);
-        for (const e of tmp) { if (hit.has(e) || e.dead) continue; const d = dist2(e, cur); if (d < bd) { bd = d; best = e; } }
+        for (const e of tmp) { if (hit.has(e) || e.dead || !onScreen(e)) continue; const d = dist2(e, cur); if (d < bd) { bd = d; best = e; } }
         cur = best;
       }
       G.fx.push({ kind: 'chain', pts, life: 0.2, max: 0.2 });
@@ -818,9 +821,10 @@ function updateProjectiles(dt) {
       if (!pr.target || pr.target.dead) {
         let best = null, bd = 200 * 200;
         nearby(pr.x, pr.y, 200, tmp2);
-        for (const e of tmp2) { if (pr.hits.has(e)) continue; const d = dist2(e, pr); if (d < bd) { bd = d; best = e; } }
+        for (const e of tmp2) { if (pr.hits.has(e) || !onScreen(e)) continue; const d = dist2(e, pr); if (d < bd) { bd = d; best = e; } }
         pr.target = best;
       }
+      if (pr.target && !onScreen(pr.target)) pr.target = null;
       if (pr.target) {
         const a = Math.atan2(pr.target.y - pr.y, pr.target.x - pr.x);
         const cur = Math.atan2(pr.vy, pr.vx);
@@ -840,6 +844,7 @@ function updateProjectiles(dt) {
       }
     }
     pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+    if (!onScreen(pr, 4)) { pr.life = 0; continue; } // never leaves the screen
     nearby(pr.x, pr.y, 16, tmp);
     for (const e of tmp) {
       if (e.dead || pr.hits.has(e)) continue;
@@ -853,7 +858,7 @@ function updateProjectiles(dt) {
           // Bounce to the nearest shopper it hasn't hit yet.
           let next = null, nd = 130 * 130;
           nearby(pr.x, pr.y, 130, tmp2);
-          for (const o of tmp2) { if (o.dead || pr.hits.has(o)) continue; const d2 = dist2(o, pr); if (d2 < nd) { nd = d2; next = o; } }
+          for (const o of tmp2) { if (o.dead || pr.hits.has(o) || !onScreen(o)) continue; const d2 = dist2(o, pr); if (d2 < nd) { nd = d2; next = o; } }
           if (next) {
             pr.bounces--; pr.life = Math.max(pr.life, 0.8);
             const a = Math.atan2(next.y - pr.y, next.x - pr.x);
