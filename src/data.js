@@ -349,7 +349,7 @@ export const POWERUPS = [
   { id: 'rush', name: 'Rush Hour', desc: '+50% move speed for 8s', icon: '⚡', dur: 8, weight: 3 },
   { id: 'markdown', name: 'Markdown', desc: 'Weapons fire twice as fast for 6s', icon: '⏩', dur: 6, weight: 3 },
   { id: 'freeze', name: 'Price Freeze', desc: 'Shoppers frozen for 3s', icon: '🧊', dur: 3, weight: 2 },
-  { id: 'clearance', name: 'Clearance', desc: 'Every receipt on screen flies to you', icon: '🧲', weight: 3 },
+  { id: 'clearance', name: 'Clearance', desc: 'Every receipt on the map flies to you', icon: '🧲', weight: 3 },
   { id: 'sample', name: 'Free Sample', desc: 'Heal 30 HP', icon: '🍪', weight: 3 },
   { id: 'evacuate', name: 'Everything Must Go', desc: 'Knocks out shoppers around you', icon: '🚨', weight: 0.5 },
 ];

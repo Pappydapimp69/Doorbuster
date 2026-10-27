@@ -933,7 +933,7 @@ function updatePickups(dt) {
     if (!g.pull && dist2(g, p) < mag * mag) g.pull = true;
     if (g.pull) {
       const dx = p.x - g.x, dy = p.y - g.y, d = Math.hypot(dx, dy) || 1;
-      const sp = 260;
+      const sp = Math.max(260, d * 1.5); // far receipts (Clearance) catch up fast
       g.x += (dx / d) * sp * dt; g.y += (dy / d) * sp * dt;
       if (d < 6) { g.dead = true; gainXp(g.v); save.receiptsGot = (save.receiptsGot || 0) + 1; }
     }
@@ -1567,7 +1567,7 @@ function applyPowerup(pu, x, y) {
   G.powerups++;
   const p = G.player;
   if (pu.dur) G.buffs[pu.id] = pu.dur * G.stats.buffDur;
-  if (pu.id === 'clearance') for (const g of G.gems) if (Math.abs(g.x - p.x) < W / 2 && Math.abs(g.y - p.y) < H / 2) g.pull = true;
+  if (pu.id === 'clearance') for (const g of G.gems) g.pull = true; // the whole map's receipts, not just on screen
   if (pu.id === 'sample') p.hp = Math.min(G.stats.maxHp, p.hp + healAmt(30));
   if (pu.id === 'evacuate') {
     G.fx.push({ kind: 'ring', x: p.x, y: p.y, r: 4, maxR: 130, life: 0.5, max: 0.5, dmg: 0, knock: 260, hits: new Set() });
