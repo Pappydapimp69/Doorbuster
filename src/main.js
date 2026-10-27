@@ -355,7 +355,15 @@ function updateEnemies(dt) {
   if (st && (G.flowT -= dt) <= 0) { G.flowT = 0.25; updateFlow(st, p.x, p.y); }
   for (const e of G.enemies) {
     if (e.marked > 0) e.marked -= dt;
-    if (e.stunT > 0) { e.stunT -= dt; continue; } // Greeter's Welcome, Foam Party glue
+    if (e.downT > 0) e.downT -= dt;
+    if (e.skidT > 0) {
+      // Skidding: momentum only, bleeding off, then down on the floor for a moment.
+      e.skidT -= dt; e.x += e.svx * dt; e.y += e.svy * dt;
+      const f = Math.pow(0.04, dt); e.svx *= f; e.svy *= f;
+      if (e.skidT <= 0) { e.downT = 0.7; e.stunT = 0.7; }
+      continue;
+    }
+    if (e.stunT > 0) { e.stunT -= dt; continue; } // Greeter's Welcome, Foam Party glue, slipped
     if (G.buffs.freeze && !e.def.boss) { e.flash = 0; e.kx *= 0.8; e.ky *= 0.8; continue; } // Price Freeze: no moving, shooting or summoning
     e.t += dt;
     e.flash = Math.max(0, e.flash - dt);
@@ -475,16 +483,34 @@ function updateEnemies(dt) {
       }
     }
   }
+  // Skidding shoppers bowl over whoever they hit, after everyone has moved. Bowled-over
+  // shoppers fall down but don't skid on, so a slip is one hop, never a chain.
+  for (const e of G.enemies) {
+    if (!(e.skidT > 0)) continue;
+    nearby(e.x, e.y, 20, tmp);
+    for (const o of tmp) {
+      if (o === e || o.dead || o.def.boss || o.skidT > 0 || o.downT > 0) continue;
+      const rr = e.r + o.r;
+      if (dist2(e, o) > rr * rr) continue;
+      curSrc = 'wetFloor';
+      damageEnemy(o, e.skidDmg, 0, 0, 0); damageEnemy(e, e.skidDmg, 0, 0, 0);
+      o.downT = 0.8; o.stunT = Math.max(o.stunT || 0, 0.8);
+      o.kx += e.svx * 0.5; o.ky += e.svy * 0.5;
+    }
+  }
   // Shelves are solid. A scooter that rams one stops dead and is dazed for a moment.
   if (st) for (const e of G.enemies) {
     if (e.entering) continue;
-    if (collide(st, e, e.r) && e.def.scooter && e.charging > 0) { e.charging = 0; e.t = 0; e.stunT = 0.6; e.kx = e.ky = 0; G.shake = Math.max(G.shake, 0.15); }
+    const hitShelf = collide(st, e, e.r);
+    if (hitShelf && e.skidT > 0) { e.skidT = 0; e.downT = e.stunT = 0.9; curSrc = 'wetFloor'; damageEnemy(e, e.skidDmg, 0, 0, 0); }
+    if (hitShelf && e.def.scooter && e.charging > 0) { e.charging = 0; e.t = 0; e.stunT = 0.6; e.kx = e.ky = 0; G.shake = Math.max(G.shake, 0.15); }
   }
   // Contact damage.
   if (p.inv <= 0) {
     nearby(p.x, p.y, 24, tmp);
     for (const e of tmp) {
       if (G.buffs.freeze && !e.def.boss) continue;
+      if (e.skidT > 0 || e.downT > 0) continue; // on the floor: harmless
       const rr = e.r + 5;
       if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * (e.charging > 0 && e.def.scooter ? 1.5 : 1) * G.stage.dmgMul * (G.rioting ? RIOT.dmg : 1) * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
     }
@@ -683,7 +709,7 @@ function fireWeapon(w) {
       for (let i = 0; i < s.count; i++) {
         const t = closestEnemies(8, 200);
         const target = t.length ? pick(t) : { x: p.x + rand(-60, 60), y: p.y + rand(-60, 60) };
-        G.puddles.push({ x: target.x + rand(-10, 10), y: target.y + rand(-10, 10), r: s.size * G.stats.area, life: s.dur, max: s.dur, dmg: s.dmg, tick: 0 });
+        G.puddles.push({ x: target.x + rand(-10, 10), y: target.y + rand(-10, 10), r: s.size * G.stats.area, life: s.dur, max: s.dur, dmg: s.dmg, tick: 0, slip: w.evolved });
       }
       return true;
     }
@@ -926,11 +952,21 @@ function updateProjectiles(dt) {
   for (const pd of G.puddles) {
     curSrc = pd.src;
     pd.life -= dt; pd.tick -= dt;
+    if (pd.slip) {
+      // Slippery When Wet: step in and you skid the way you were walking, no steering.
+      nearby(pd.x, pd.y, pd.r, tmp);
+      for (const e of tmp) if (!e.def.scooter && !e.def.boss && !e.entering && !(e.skidT > 0) && !(e.downT > 0) && dist2(e, pd) < pd.r * pd.r) {
+        let vx = e.vx, vy = e.vy, m = Math.hypot(vx, vy);
+        if (m < 1) { vx = G.player.x - e.x; vy = G.player.y - e.y; m = Math.hypot(vx, vy) || 1; }
+        const sp = Math.max(e.speed * 2.5, 80);
+        e.skidT = 0.6; e.svx = vx / m * sp; e.svy = vy / m * sp; e.skidDmg = pd.dmg; e.charging = 0; e.windup = 0;
+      }
+    }
     if (pd.tick <= 0) {
       pd.tick = 0.4;
       nearby(pd.x, pd.y, pd.r, tmp);
       for (const e of tmp) if (!e.def.scooter && dist2(e, pd) < pd.r * pd.r) {
-        e.slow = 0.6;
+        if (!pd.slip) e.slow = 0.6;
         if (pd.foam && !e.def.boss) e.stunT = Math.max(e.stunT || 0, 0.5); // glued
         damageEnemy(e, pd.dmg, 0, 0, 0);
       }
@@ -1268,6 +1304,7 @@ function render() {
     const bob = Math.abs(Math.sin(e.t * 9)) * 1.2;
     cx.save();
     cx.translate(Math.round(e.x + (e.windup > 0 ? rand(-1, 1) : 0)), Math.round(e.y - bob));
+    if (e.skidT > 0 || e.downT > 0) cx.rotate(e.skidT > 0 ? 0.6 : 1.4); // slipping, then flat on the floor
     if (e.face < 0) cx.scale(-1, 1);
     cx.fillStyle = 'rgba(0,0,0,0.18)';
     cx.fillRect(-s.width / 2 + 2, s.height / 2 - 1 + bob, s.width - 4, 2);

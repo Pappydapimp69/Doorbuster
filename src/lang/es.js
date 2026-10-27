@@ -59,7 +59,6 @@ export default {
     paSystem: { name: 'Aviso a toda la tienda', desc: 'Lo oye toda la tienda.' },
     giftCard: { name: 'Tarjeta negra', desc: 'Sin límite. Literalmente.' },
     alarm: { name: 'Cierre total', desc: 'Todas las puertas de la tienda acaban de bloquearse.' },
-    wetFloor: { name: 'Zona inundada', desc: 'Alguien dejó la manguera abierta.' },
   },
   maps: {
     floor: { name: 'Planta principal', desc: 'Comida, hogar y 400 personas que se levantaron a las 3 AM por una tostadora.', boss: 'Gerente regional' },

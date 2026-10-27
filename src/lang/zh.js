@@ -59,7 +59,6 @@ export default {
     paSystem: { name: '全店广播', desc: '整个商店都听得见。' },
     giftCard: { name: '黑卡', desc: '无上限。字面意思。' },
     alarm: { name: '全面封锁', desc: '店里每一扇门刚刚都锁上了。' },
-    wetFloor: { name: '水漫金山', desc: '有人忘了关水管。' },
   },
   maps: {
     floor: { name: '主卖场', desc: '食品、家居，还有400个凌晨3点起床来抢烤面包机的人。', boss: '区域经理' },

@@ -59,7 +59,6 @@ export default {
     paSystem: { name: 'Aviso pra loja toda', desc: 'A loja inteira escuta.' },
     giftCard: { name: 'Cartão black', desc: 'Sem limite. Literalmente.' },
     alarm: { name: 'Lockdown', desc: 'Todas as portas da loja acabaram de trancar.' },
-    wetFloor: { name: 'Zona de enchente', desc: 'Alguém deixou a mangueira aberta.' },
   },
   maps: {
     floor: { name: 'Salão principal', desc: 'Mercado, casa e 400 pessoas que acordaram às 3h por uma torradeira.', boss: 'Gerente regional' },

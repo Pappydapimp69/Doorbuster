@@ -59,7 +59,6 @@ export default {
     paSystem: { name: 'Durchsage für alle', desc: 'Der ganze Laden hört es.' },
     giftCard: { name: 'Black Card', desc: 'Kein Limit. Wortwörtlich.' },
     alarm: { name: 'Lockdown', desc: 'Jede Tür im Laden ist gerade zugegangen.' },
-    wetFloor: { name: 'Überschwemmung', desc: 'Jemand hat den Schlauch laufen lassen.' },
   },
   maps: {
     floor: { name: 'Verkaufsfläche', desc: 'Lebensmittel, Haushalt und 400 Leute, die um 3 Uhr für einen Toaster aufgestanden sind.', boss: 'Regionalleiter' },
