@@ -369,12 +369,23 @@ function updateEnemies(dt) {
       if (e.charging > 0) { e.charging -= dt; mx = e.cdx; my = e.cdy; sp = e.speed * 4; }
       else if (e.t > 4 && d < 160) { e.t = 0; e.charging = 0.7; e.cdx = dx; e.cdy = dy; }
     }
-    if (e.def.scooter && d < 120) {
-      // Close in: straight-line bursts, re-aimed after a short rev between them.
-      if (e.charging > 0) { e.charging -= dt; mx = e.cdx; my = e.cdy; sp *= 3.4; if (e.charging <= 0) e.t = 0; }
-      else if (e.t > 0.45) { e.charging = 0.5; e.cdx = dx; e.cdy = dy; e.face = dx > 0 ? 1 : -1; }
-      else sp *= 0.4;
-    } else if (e.def.scooter && e.charging > 0) { e.charging -= dt; mx = e.cdx; my = e.cdy; sp *= 3.4; }
+    if (e.def.scooter) {
+      // Drives like a scooter: always rolls forward along its heading and turns on an arc,
+      // never in place. Close and lined up, it stops, revs for half a second, then dashes straight.
+      if (e.hd === undefined) e.hd = Math.atan2(dy, dx);
+      const diff = ((Math.atan2(dy, dx) - e.hd + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      if (e.charging > 0) { e.charging -= dt; sp *= 3.4; if (e.charging <= 0) e.t = 0; }
+      else if (e.windup > 0) {
+        e.windup -= dt; sp = 0;
+        if (rng() < 0.4) G.parts.push({ x: e.x - Math.cos(e.hd) * 8, y: e.y + 4, vx: -Math.cos(e.hd) * 30 + rand(-10, 10), vy: rand(-20, -5), life: 0.3, c: '#9a9a9a', float: true });
+        if (e.windup <= 0) e.charging = 0.5;
+      } else {
+        // Too close and facing away: drive on to make room instead of circling the player forever.
+        if (!(d < 40 && Math.abs(diff) > 1.6)) e.hd += clamp(diff, -1.6 * dt, 1.6 * dt);
+        if (d < 120 && e.t > 0.6 && Math.abs(diff) < 0.3) e.windup = 0.5;
+      }
+      mx = Math.cos(e.hd); my = Math.sin(e.hd);
+    }
     if (e.type === 'requester' && e.t > 8) {
       e.t = 0;
       for (let i = 0; i < 3; i++) {
@@ -385,11 +396,13 @@ function updateEnemies(dt) {
     e.vx = mx * sp; e.vy = my * sp;
     e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
     e.kx *= Math.pow(0.002, dt); e.ky *= Math.pow(0.002, dt);
-    if (Math.abs(dx) > 0.1 && !(e.def.scooter && e.charging > 0)) e.face = dx > 0 ? 1 : -1;
+    if (e.def.scooter) e.face = Math.cos(e.hd) >= 0 ? 1 : -1;
+    else if (Math.abs(dx) > 0.1) e.face = dx > 0 ? 1 : -1;
     // Recycle shoppers that fall far behind so the crowd stays around you.
     if (d > 420 && !e.def.elite && !e.def.boss) {
       const a = Math.atan2(p.y - e.y, p.x - e.x) + rand(-0.5, 0.5);
       e.x = p.x + Math.cos(a) * 290; e.y = p.y + Math.sin(a) * 290;
+      e.hd = undefined; e.windup = 0; e.charging = 0;
     }
   }
   // Separation: shoppers don't stack into one blob.
@@ -1171,7 +1184,7 @@ function render() {
     const s = arr[e.var % arr.length];
     const bob = Math.abs(Math.sin(e.t * 9)) * 1.2;
     cx.save();
-    cx.translate(Math.round(e.x), Math.round(e.y - bob));
+    cx.translate(Math.round(e.x + (e.windup > 0 ? rand(-1, 1) : 0)), Math.round(e.y - bob));
     if (e.face < 0) cx.scale(-1, 1);
     cx.fillStyle = 'rgba(0,0,0,0.18)';
     cx.fillRect(-s.width / 2 + 2, s.height / 2 - 1 + bob, s.width - 4, 2);
