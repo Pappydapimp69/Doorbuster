@@ -207,7 +207,7 @@ tpauseEl.addEventListener('click', () => pause());
 function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, map = save.map || 'floor') {
   rng = mulberry32(seed);
   G = {
-    seed, char: charId, map, stage: STAGES[map], overtime: false, otStart: 0, paid: false, t: 0, level: 1, xp: 0, xpNeed: xpFor(1), pendingLevels: 0,
+    seed, char: charId, map, stage: STAGES[map], overtime: false, otStart: 0, paid: false, t: 0, level: 1, xp: 0, xpBank: 0, xpNeed: xpFor(1), pendingLevels: 0,
     player: { x: 0, y: 0, hp: 100, inv: 0, face: 1, fx: 1, fy: 0, anim: 0, moving: false },
     enemies: [], projs: [], eprojs: [], lobs: [], gems: [], drops: [], puddles: [], fx: [], texts: [], parts: [],
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
@@ -515,8 +515,9 @@ function killEnemy(e) {
 
 function dropGem(x, y, v) {
   if (G.gems.length > 120) {
-    // Fold into an existing far gem instead of growing the list.
-    const g = G.gems[Math.floor(rng() * G.gems.length)];
+    // Fold into the nearest receipt instead of growing the list, so big ones pile up where the fighting is.
+    let g = G.gems[0], best = Infinity;
+    for (const q of G.gems) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < best) { best = d; g = q; } }
     g.v += v; return;
   }
   G.gems.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), v, pull: false, vx: 0, vy: 0 });
@@ -841,6 +842,7 @@ function updateProjectiles(dt) {
 
 // ---------- pickups ----------
 function updatePickups(dt) {
+  drainXp(dt);
   const p = G.player, mag = G.stats.magnet;
   for (const g of G.gems) {
     if (!g.pull && dist2(g, p) < mag * mag) g.pull = true;
@@ -869,10 +871,21 @@ function updatePickups(dt) {
   G.drops = G.drops.filter((d) => !d.dead);
 }
 
+// Pickups go into a bank that drains into the bar, so a fat receipt gives its
+// levels one after another instead of all at once. The drain scales with the
+// level's cost and the bank's size, so high levels never feel slow.
 function gainXp(v) {
-  G.xp += v * G.stats.xp;
+  const amt = v * G.stats.xp;
+  G.xpBank += amt;
   sfx('pickup', G.combo);
-  while (G.xp >= G.xpNeed) {
+  if (amt >= G.xpNeed * 0.25) G.texts.push({ x: G.player.x, y: G.player.y - 20, v: Math.round(amt), life: 1.2, color: '#f5d142' });
+}
+
+function drainXp(dt) {
+  if (G.xpBank <= 0) return;
+  const step = G.xpBank < G.xpNeed * 0.1 ? G.xpBank : Math.min(G.xpBank, Math.max(G.xpNeed * 1.5, G.xpBank) * dt);
+  G.xpBank -= step; G.xp += step;
+  if (G.xp >= G.xpNeed) {
     G.xp -= G.xpNeed; G.level++; G.xpNeed = xpFor(G.level); G.pendingLevels++;
   }
 }
@@ -1114,8 +1127,6 @@ function render() {
   drawFloor();
   cx.save();
   cx.translate(-camX, -camY);
-  drawShelves();
-  drawTags();
   for (const pd of G.puddles) {
     const a = Math.min(1, pd.life / 0.5, (pd.max - pd.life) / 0.2);
     cx.globalAlpha = 0.55 * a;
@@ -1125,10 +1136,18 @@ function render() {
     cx.fillRect(Math.round(pd.x - pd.r * 0.4), Math.round(pd.y - pd.r * 0.2), 3, 1);
     cx.globalAlpha = 1;
   }
+  drawShelves();
+  drawTags();
   for (const g of G.gems) {
-    const s = g.v >= 25 ? SPR.receipt3 : g.v >= 5 ? SPR.receipt2 : SPR.receipt1;
+    const big = g.v >= 100;
+    const s = big ? SPR.receipt4 : g.v >= 25 ? SPR.receipt3 : g.v >= 5 ? SPR.receipt2 : SPR.receipt1;
     const flutter = g.pull ? 0 : Math.round(Math.sin(G.t * 5 + g.x) * 1);
-    cx.drawImage(s, Math.round(g.x - 2), Math.round(g.y - 3 + flutter));
+    if (big) {
+      cx.globalAlpha = 0.35 + 0.2 * Math.sin(G.t * 6 + g.x);
+      cx.fillStyle = '#f5d142'; cx.beginPath(); cx.arc(g.x, g.y, 7, 0, Math.PI * 2); cx.fill();
+      cx.globalAlpha = 1;
+    }
+    cx.drawImage(s, Math.round(g.x - s.width / 2), Math.round(g.y - s.height / 2 + flutter));
   }
   for (const d of G.drops) {
     const s = SPR[d.kind];
@@ -1466,7 +1485,7 @@ function renderHud() {
   ui.hud.style.display = '';
   const w = G.weapons.map((x) => `<span class="slot${x.evolved ? ' evo' : ''}">${ICONS[x.id]}<b>${x.evolved ? '★' : x.lv}</b></span>`).join('');
   const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('');
-  const html = `<div class="xpbar"><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>${T('ui.lv', { n: G.level })}</span></div>
+  const html = `<div class="xpbar"><i style="width:${Math.min(100, ((G.xp + G.xpBank) / G.xpNeed) * 100)}%"></i><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>${T('ui.lv', { n: G.level })}</span></div>
     ${riotOn() ? '' : '<!--'}<div class="riotbar${G.rioting ? ' on' : ''}"><div style="width:${G.riot}%"></div><span>${T(G.rioting ? 'ui.riotHudOn' : 'ui.riotHud')}</span></div>${riotOn() ? '' : '-->'}
     <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${T(G.overtime ? 'ui.overtimeHud' : G.t < BOSS_AT ? 'ui.shiftEnds' : 'ui.holdOn')}</small></div>
     <div class="right">🛍️ ${G.kills}<br>💰 ${G.tipsRun}${G.combo >= 25 ? `<div class="combo" style="--c:${Math.min(1, G.combo / 300)}">×${Math.floor(G.combo / 5) * 5}</div>` : ''}</div></div><div class="slots">${ps}</div>${Object.keys(G.buffs).length ? `<div class="buffs">${Object.entries(G.buffs).map(([id, t]) => `<span title="${T(`powerups.${id}.desc`)}">${POWERUPS.find((p) => p.id === id).icon} ${T(`powerups.${id}.name`)} <b>${Math.ceil(t)}s</b></span>`).join('')}</div>` : ''}`;
@@ -1720,7 +1739,7 @@ function openLevelUp() {
   renderLevelUp();
 }
 function renderLevelUp() {
-  show(`<h2>${T('ui.level', { n: G.level - G.pendingLevels + 1 })}</h2><p class="sub">${T('ui.pickOne')}</p>
+  show(`<h2>${T('ui.level', { n: G.level - G.pendingLevels + 1 })}${G.pendingLevels > 1 ? ` <small>(+${G.pendingLevels - 1})</small>` : ''}</h2><p class="sub">${T('ui.pickOne')}</p>
     <div class="choices">${G.choices.map((c, i) => {
       const inf = choiceInfo(c);
       return `<button class="btn choice${c.type === 'evo' ? ' evo' : ''}" data-act="choose" data-arg="${i}">

@@ -192,6 +192,7 @@ const MAPS = {
   receipt1: ['kkkkk', 'kwwwk', 'kwkwk', 'kwwwk', 'kwkwk', 'kwwwk', 'kw.wk'],
   receipt2: ['kkkkk', 'kyyyk', 'kykyk', 'kyyyk', 'kykyk', 'kyyyk', 'ky.yk'],
   receipt3: ['kkkkk', 'kpppk', 'kpkpk', 'kpppk', 'kpkpk', 'kpppk', 'kp.pk'],
+  receipt4: ['kkkkkkk', 'kyyyyyk', 'kyokoyk', 'kyyyyyk', 'kyokoyk', 'kyyyyyk', 'kyokoyk', 'kyyyyyk', 'ky.y.yk'],
   coin: ['.yy.', 'yooy', 'yooy', '.yy.'],
   heart: ['R.R.', 'RRRR', 'RRRR', '.RR.'],
   box: ['oooooo', 'okkkko', 'oooooo', 'oyyyyo', 'oooooo'],
@@ -263,7 +264,7 @@ export function buildSprites(characters) {
   const BOSS_PALS = [{}, { e: '#3b1f4a', G: '#dddddd' }, { e: '#5a4a1a', G: '#f3f1ea', R: '#2a7a3a' }];
   SPR.boss = BOSS_PALS.map((pal) => render(MAPS.boss, pal, 2));
   SPR.boss_b = BOSS_PALS.map((pal) => render(stride(MAPS.boss), pal, 2));
-  for (const k of ['cart', 'chicken', 'receipt1', 'receipt2', 'receipt3', 'coin', 'heart', 'box']) SPR[k] = render(MAPS[k], {});
+  for (const k of ['cart', 'chicken', 'receipt1', 'receipt2', 'receipt3', 'receipt4', 'coin', 'heart', 'box']) SPR[k] = render(MAPS[k], {});
   for (const k of Object.keys(SPR)) {
     if (Array.isArray(SPR[k])) SPR[k + '_flash'] = SPR[k].map(flash);
     else SPR[k + '_flash'] = flash(SPR[k]);

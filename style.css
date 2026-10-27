@@ -131,3 +131,5 @@ body.touch .hint { display: none; }
 .ptile { min-height: 0; padding: 4px 4px 5px; }
 body.touch .ptile { min-height: 0; }
 .perkinfo b .pips { font-style: normal; color: var(--yellow); font-size: 14px; letter-spacing: 2px; margin-left: 6px; }
+.xpbar i { position: absolute; left: 0; top: 0; height: 100%; background: #f5d142; opacity: .45; }
+.xpbar div { position: relative; }
