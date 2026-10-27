@@ -108,7 +108,7 @@ function pollPad() {
   const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
   if (Math.hypot(ax, ay) > 0.2) { out.x = ax; out.y = ay; }
   const btn = (i) => p.buttons[i] && p.buttons[i].pressed;
-  const map = { 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight', 0: 'Enter', 1: 'Escape', 9: 'Escape', 2: 'KeyR' };
+  const map = { 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight', 0: 'Enter', 1: 'Escape', 9: 'Escape', 2: 'KeyR', 4: 'KeyQ', 5: 'KeyE' };
   for (const [i, code] of Object.entries(map)) {
     const now = btn(+i);
     if (now && !padPrev[i]) { pressed.add(code); initAudio(); }
@@ -1588,6 +1588,12 @@ function menuInput() {
   if (pressed.has('Enter') || pressed.has('Space')) list[focusIdx]?.click();
   for (let i = 1; i <= 4; i++) if (pressed.has('Digit' + i) && state === 'levelup') list[i - 1]?.click();
   if (pressed.has('KeyR') && state === 'levelup') $('#reroll')?.click();
+  // Shoulder buttons (or Q/E) flip through a screen's tabs.
+  const tabs = [...ui.screen.querySelectorAll('.tabs .btn')];
+  if (tabs.length && (pressed.has('KeyQ') || pressed.has('KeyE'))) {
+    const i = tabs.findIndex((b) => b.classList.contains('on'));
+    tabs[(i + (pressed.has('KeyE') ? 1 : -1) + tabs.length) % tabs.length].click(); sfx('ui');
+  }
   if (pressed.has('Escape') && show.back) show.back();
 }
 
@@ -1611,6 +1617,7 @@ const ACTIONS = {
   shop: () => showShop(),
   inventory: () => showInventory(),
   shoptab: (t) => showShop(null, t),
+  invtab: (t) => showInventory(t),
   staff: () => showStaff(),
   settings: () => showSettings(state === 'paused' ? showPause : showMenu),
   menu: () => { state = 'menu'; G = null; showMenu(); startMusic('menu'); },
@@ -1669,23 +1676,35 @@ function showMenu() {
     <p class="hint">${T('ui.hint')}</p>`);
 }
 
-function showInventory() {
+// Inventory: tabs of compact tiles like the Break Room, so nothing runs off
+// screen and every tile is a button the gamepad can land on.
+function showInventory(tab = showInventory.tab || 'weapons') {
+  showInventory.tab = tab;
   const st = save.stats, mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-  const rec = [['recBest', mmss(st.bestTime || 0)], ['recWins', st.wins || 0], ['recKills', st.totalKills || 0], ['recBoss', st.bossKills || 0],
-    ['recOvertime', mmss(st.bestOvertime || 0)], ['recLevel', st.bestLevel || 0]];
-  const weapons = Object.keys(WEAPONS).map((id) => weaponUnlocked(id)
-    ? `<div class="inv"><span class="ic">${ICONS[id]}</span><b>${T(`weapons.${id}.name`)}</b><span>${T(`weapons.${id}.desc`)}</span></div>`
-    : `<div class="inv locked"><span class="ic">🔒</span><b>${T('ui.lockedH')}</b><span>${unlockText(id)}</span></div>`).join('');
-  const passives = Object.keys(PASSIVES).map((id) => `<div class="inv"><span class="ic">${ICONS[id]}</span><b>${T(`passives.${id}.name`)}</b><span>${T(`passives.${id}.desc`)}</span></div>`).join('');
-  const evos = Object.entries(EVOLUTIONS).map(([id, e]) => (save.evoSeen || {})[id]
-    ? `<div class="inv"><span class="ic">⭐</span><b>${T(`evolutions.${id}.name`)}</b><span>${ICONS[id]} ${T(`weapons.${id}.name`)} ★ + ${ICONS[e.needs]} ${T(`passives.${e.needs}.name`)}</span></div>`
-    : `<div class="inv locked"><span class="ic">⭐</span><b>???</b><span>${T('ui.unknownEvo')}</span></div>`).join('');
-  show(`<h2>${T('ui.inventory')}</h2>
-    <div class="records">${rec.map(([k, v]) => `<div><b>${v}</b>${T('ui.' + k)}</div>`).join('')}</div>
-    <h3>${T('ui.weaponsH')}</h3><div class="invgrid">${weapons}</div>
-    <h3>${T('ui.passivesH')}</h3><div class="invgrid">${passives}</div>
-    <h3>${T('ui.evolutionsH')}</h3><div class="invgrid">${evos}</div>
-    <button class="btn back" data-act="menu">${T('ui.back')}</button>`, showMenu);
+  const tile = (icon, name, info, cls = '') => `<button class="btn ptile${cls}" data-info="${escapeAttr(info)}"><span class="pic">${icon}</span><span class="pname">${name}</span></button>`;
+  const evoSeen = save.evoSeen || {};
+  const wN = Object.keys(WEAPONS).filter(weaponUnlocked).length, eN = Object.keys(EVOLUTIONS).filter((id) => evoSeen[id]).length;
+  let tiles;
+  if (tab === 'weapons') tiles = Object.keys(WEAPONS).map((id) => weaponUnlocked(id)
+    ? tile(ICONS[id], T(`weapons.${id}.name`), `<b>${ICONS[id]} ${T(`weapons.${id}.name`)}</b><span>${T(`weapons.${id}.desc`)}</span><i>Evolves with ${ICONS[EVOLUTIONS[id]?.needs] || ''} ${EVOLUTIONS[id] ? T(`passives.${EVOLUTIONS[id].needs}.name`) : '—'}</i>`)
+    : tile('🔒', T('ui.lockedH'), `<b>🔒 ${T('ui.lockedH')}</b><span>${unlockText(id)}</span>`, ' locked'));
+  else if (tab === 'passives') tiles = Object.keys(PASSIVES).map((id) => {
+    const evo = Object.keys(EVOLUTIONS).find((w) => EVOLUTIONS[w].needs === id);
+    return tile(ICONS[id], T(`passives.${id}.name`), `<b>${ICONS[id]} ${T(`passives.${id}.name`)}</b><span>${T(`passives.${id}.desc`)}</span>${evo ? `<i>Evolves ${ICONS[evo]} ${T(`weapons.${evo}.name`)}</i>` : ''}`);
+  });
+  else if (tab === 'evolutions') tiles = Object.entries(EVOLUTIONS).map(([id, e]) => evoSeen[id]
+    ? tile('⭐', T(`evolutions.${id}.name`), `<b>⭐ ${T(`evolutions.${id}.name`)}</b><span>${T(`evolutions.${id}.desc`)}</span><i>${ICONS[id]} ${T(`weapons.${id}.name`)} ★ + ${ICONS[e.needs]} ${T(`passives.${e.needs}.name`)}</i>`, ' got')
+    : tile('❔', '???', `<b>❔ ???</b><span>${T('ui.unknownEvo')}</span>`, ' locked'));
+  else tiles = [['recBest', mmss(st.bestTime || 0), '⏱️'], ['recWins', st.wins || 0, '🏁'], ['recKills', st.totalKills || 0, '🛒'], ['recBoss', st.bossKills || 0, '👔'],
+    ['recOvertime', mmss(st.bestOvertime || 0), '🌙'], ['recLevel', st.bestLevel || 0, '📈']]
+    .map(([k, v, ic]) => tile(ic, `${v} <small>${T('ui.' + k)}</small>`, `<b>${ic} ${v}</b><span>${T('ui.' + k)}</span>`));
+  const tabBtn = (id, label) => `<button class="btn sm${tab === id ? ' on' : ''}" data-act="invtab" data-arg="${id}">${label}</button>`;
+  show(`<div class="screenhead"><h2>${T('ui.inventory')}</h2>
+    <div class="tabs">${tabBtn('weapons', `${T('ui.weaponsH')} ${wN}/${Object.keys(WEAPONS).length}`)}${tabBtn('passives', T('ui.passivesH'))}${tabBtn('evolutions', `${T('ui.evolutionsH')} ${eN}/${Object.keys(EVOLUTIONS).length}`)}${tabBtn('records', T('ui.records'))}</div></div>
+    <div class="perkgrid" data-cols="5">${tiles.join('')}</div>
+    <div class="screenfoot"><div id="perkinfo" class="perkinfo"></div>
+    <button class="btn back" data-act="menu">${T('ui.back')}</button></div>`, showMenu);
+  refocus('.ptile');
 }
 
 const skill = () => CHARACTERS[G.char].skill;
