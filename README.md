@@ -4,7 +4,7 @@ A Black Friday survivors-like. It's 5:00 AM, the doors are opening, and you're
 the only one working the floor. Weapons fire on their own; you move, level up,
 and survive until 11:00 AM.
 
-- 10-minute runs (a 6-hour shift), 11 weapons, 9 passives, 9 evolutions
+- 10-minute runs (a 6-hour shift), 11 weapons, 9 passives, 11 evolutions (every weapon evolves)
 - 9 shopper types, elite "Manager Requesters", three managers to beat
 - Three departments: Main Floor, Electronics (unlocks after a full shift), Toys (unlocks after a shift in Electronics)
 - Four weapons unlock at milestones; Inventory screen with records and evolution recipes

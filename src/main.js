@@ -477,6 +477,14 @@ function damageEnemy(e, dmg, kx, ky, knock) {
 function killEnemy(e) {
   e.dead = true;
   G.kills++;
+  // Unboxing Day: knockouts by the Box Cutter burst into packing peanuts.
+  if (curSrc === 'boxCutter') {
+    const w = G.weapons.find((x) => x.id === 'boxCutter' && x.evolved);
+    if (w) for (let k = 0; k < EVOLUTIONS.boxCutter.stats.peanuts; k++) {
+      const a = (k / EVOLUTIONS.boxCutter.stats.peanuts) * Math.PI * 2 + rand(0, 1);
+      G.projs.push({ x: e.x, y: e.y, vx: Math.cos(a) * 190, vy: Math.sin(a) * 190, dmg: 25, pierce: 2, r: 3, life: 0.5, kind: 'peanut', src: 'peanut', hits: new Set([e]), bounces: 0 });
+    }
+  }
   sfx('kill');
   G.combo++; G.comboT = 1.2;
   const n = e.def.boss ? 40 : e.def.elite ? 14 : 4;
@@ -657,7 +665,7 @@ function fireWeapon(w) {
       for (let i = 0; i < s.count; i++) {
         const t = closestEnemies(10, 200);
         const tg = t.length ? pick(t) : { x: p.x + rand(-80, 80), y: p.y + rand(-80, 80) };
-        G.lobs.push({ sx: p.x, sy: p.y, tx: tg.x, ty: tg.y, t: 0, dur: 0.6, dmg: s.dmg, r: s.radius * G.stats.area });
+        G.lobs.push({ sx: p.x, sy: p.y, tx: tg.x, ty: tg.y, t: 0, dur: 0.6, dmg: s.dmg, r: s.radius * G.stats.area, grease: s.grease || 0 });
       }
       return true;
     }
@@ -695,7 +703,7 @@ function updateWeapons(dt) {
       const n0 = [G.projs.length, G.fx.length, G.puddles.length, G.lobs.length];
       const fired = fireWeapon(w);
       if (fired && G.stats.bogo && rng() < G.stats.bogo) fireWeapon(w); // Buy One Get One
-      [G.projs, G.fx, G.puddles, G.lobs].forEach((list, i) => { for (let k = n0[i]; k < list.length; k++) list[k].src = w.id; });
+      [G.projs, G.fx, G.puddles, G.lobs].forEach((list, i) => { for (let k = n0[i]; k < list.length; k++) if (!list[k].src) list[k].src = w.id; });
       // Coupon Book bounces; Extreme Couponing coupons bounce up to 10 hits.
       for (let k = n0[0]; k < G.projs.length; k++) G.projs[k].bounces = (G.stats.bounce || 0) + (w.evolved && EVOLUTIONS[w.id].bounces || 0);
       w.cd = fired ? s.cd * (1 - G.stats.cooldown) : 0.1;
@@ -766,6 +774,8 @@ function updateProjectiles(dt) {
     if (l.t >= l.dur) {
       l.done = true;
       G.fx.push({ kind: 'boom', x: l.tx, y: l.ty, r: l.r, life: 0.3, max: 0.3 });
+      // Hot & Ready: a grease fire where it lands.
+      if (l.grease) G.puddles.push({ x: l.tx, y: l.ty, r: l.r * 0.8, life: l.grease, max: l.grease, dmg: 10, tick: 0, grease: true, src: l.src });
       nearby(l.tx, l.ty, l.r + 10, tmp);
       for (const e of tmp) {
         const d = Math.hypot(e.x - l.tx, e.y - l.ty);
@@ -1109,7 +1119,7 @@ function render() {
   for (const pd of G.puddles) {
     const a = Math.min(1, pd.life / 0.5, (pd.max - pd.life) / 0.2);
     cx.globalAlpha = 0.55 * a;
-    cx.fillStyle = pd.foam ? '#f4f7ff' : '#5fb6f0';
+    cx.fillStyle = pd.foam ? '#f4f7ff' : pd.grease ? '#ff8a2a' : '#5fb6f0';
     cx.beginPath(); cx.ellipse(pd.x, pd.y, pd.r, pd.r * 0.6, 0, 0, Math.PI * 2); cx.fill();
     cx.globalAlpha = 0.8 * a; cx.fillStyle = '#d9f1ff';
     cx.fillRect(Math.round(pd.x - pd.r * 0.4), Math.round(pd.y - pd.r * 0.2), 3, 1);
@@ -1157,6 +1167,7 @@ function render() {
       cx.fillStyle = '#000'; cx.fillRect(-4, -3, 8, 6); cx.fillStyle = '#c9a2ff'; cx.fillRect(-3, -2, 6, 4); cx.fillStyle = '#f5d142'; cx.fillRect(-3, -1, 2, 1);
       cx.restore(); continue;
     }
+    if (pr.kind === 'peanut') { cx.fillStyle = '#000'; cx.fillRect(Math.round(pr.x - 2), Math.round(pr.y - 1), 4, 3); cx.fillStyle = '#f6efd6'; cx.fillRect(Math.round(pr.x - 1), Math.round(pr.y), 2, 1); continue; }
     if (pr.kind === 'sticker') { cx.fillStyle = '#000'; cx.fillRect(Math.round(pr.x - 2), Math.round(pr.y - 2), 5, 4); cx.fillStyle = '#ff9a2e'; cx.fillRect(Math.round(pr.x - 1), Math.round(pr.y - 1), 3, 2); }
     else { cx.fillStyle = '#1e6b3a'; cx.fillRect(Math.round(pr.x - 3), Math.round(pr.y - 2), 6, 4); cx.fillStyle = '#7ee08f'; cx.fillRect(Math.round(pr.x - 2), Math.round(pr.y - 1), 4, 2); }
   }
