@@ -1067,14 +1067,17 @@ function readyEvolutions() {
   return G.weapons.filter((w) => !w.evolved && w.lv >= MAX_LEVEL && EVOLUTIONS[w.id] && G.passives[EVOLUTIONS[w.id].needs]).map((w) => w.id);
 }
 
-function buildChoices() {
+// exclude: choices just shown; a reroll draws new ones first and only reuses them if the pool runs short.
+function buildChoices(exclude = []) {
   const pool = [];
   for (const w of G.weapons) if (!w.evolved && w.lv < MAX_LEVEL) pool.push({ type: 'weapon', id: w.id });
   if (G.weapons.length < MAX_WEAPONS) for (const id in WEAPONS) if (weaponUnlocked(id) && !G.weapons.find((w) => w.id === id) && !G.banished.has(id)) pool.push({ type: 'weapon', id });
   for (const id in G.passives) if (G.passives[id] < MAX_LEVEL) pool.push({ type: 'passive', id });
   if (Object.keys(G.passives).length < MAX_PASSIVES) for (const id in PASSIVES) if (!(id in G.passives) && !G.banished.has(id)) pool.push({ type: 'passive', id });
   const out = readyEvolutions().slice(0, 1).map((id) => ({ type: 'evo', id }));
-  while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  const seen = new Set(exclude.map((c) => c.type + ':' + c.id));
+  const fresh = pool.filter((c) => !seen.has(c.type + ':' + c.id)), old = pool.filter((c) => seen.has(c.type + ':' + c.id));
+  for (const list of [fresh, old]) while (out.length < 3 && list.length) out.push(list.splice(Math.floor(rng() * list.length), 1)[0]);
   if (!out.length) out.push({ type: 'snack' }, { type: 'tips' });
   return out;
 }
@@ -1872,7 +1875,7 @@ const ACTIONS = {
   quit: () => window.close(),
   resume: () => resume(),
   choose: (i) => { const c = G.choices[+i]; sfx('pick'); applyChoice(c); G.pendingLevels--; G.choices = null; if (G.pendingLevels > 0) openLevelUp(); else { state = 'play'; show(''); } },
-  reroll: () => { if (G.rerolls > 0) { G.rerolls--; G.choices = buildChoices(); renderLevelUp(); } },
+  reroll: () => { if (G.rerolls > 0) { G.rerolls--; G.choices = buildChoices(G.choices || []); renderLevelUp(); } },
   buy: (id) => {
     const m = META[id], lv = metaLv(id);
     if (lv >= m.max || save.tips < m.cost[lv]) return;
