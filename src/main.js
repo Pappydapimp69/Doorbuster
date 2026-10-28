@@ -1,6 +1,6 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, EARNED, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY, RIOT,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, EARNED, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY, RIOT, JACKPOTS, JACKPOT_CHANCE,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { buildStore, collide, clearLine, updateFlow, flowDir, walkable, inside } from './store.js';
@@ -212,7 +212,7 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     player: { x: 0, y: 0, hp: 100, inv: 0, face: 1, fx: 1, fy: 0, anim: 0, moving: false },
     enemies: [], projs: [], eprojs: [], lobs: [], gems: [], drops: [], puddles: [], fx: [], texts: [], parts: [],
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
-    rerolls: 0, revives: 0, banished: new Set(),
+    rerolls: 0, revives: 0, banished: new Set(), jackpots: {}, jpT: {}, jackpotPick: null,
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
     nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
   };
@@ -512,7 +512,9 @@ function updateEnemies(dt) {
       if (G.buffs.freeze && !e.def.boss) continue;
       if (e.skidT > 0 || e.downT > 0) continue; // on the floor: harmless
       const rr = e.r + 5;
-      if (dist2(e, p) < rr * rr) { hurtPlayer(e.def.dmg * (e.charging > 0 && e.def.scooter ? 1.5 : 1) * G.stage.dmgMul * (G.rioting ? RIOT.dmg : 1) * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
+      if (dist2(e, p) < rr * rr) {
+        if (G.jackpots.freeze && !e.def.boss) e.stunT = Math.max(e.stunT || 0, 1); // Price Lock
+        hurtPlayer(e.def.dmg * (e.charging > 0 && e.def.scooter ? 1.5 : 1) * G.stage.dmgMul * (G.rioting ? RIOT.dmg : 1) * (e.def.boss ? 1 : 1 + G.t / 600) * (G.overtime ? 1 + (G.t - G.otStart) / 120 : 1), e.type); break; }
     }
   }
 }
@@ -566,6 +568,8 @@ function hurtPlayer(raw, src = '?') {
   G.hurtFlash = 1;
   sfx('hurt');
   G.texts.push({ x: p.x, y: p.y - 14, v: dmg, life: 0.7, color: '#ff5a5a' });
+  if (G.jackpots.rush) G.buffs.rush = Math.max(G.buffs.rush || 0, 2); // Express Lane
+  if (G.jackpots.evacuate && !G.jpT.evacuate && p.hp > 0 && p.hp < G.stats.maxHp * 0.25) { G.jpT.evacuate = JACKPOTS.evacuate.cooldown; evacuateBlast(); announce(`🚨 ${JACKPOTS.evacuate.name}!`); } // Store Closing
   if (p.hp <= 0) {
     if (G.revives > 0) {
       G.revives--; p.hp = G.stats.maxHp * 0.5; p.inv = 2;
@@ -998,7 +1002,7 @@ function updatePickups(dt) {
       if (dd < 7) {
         d.dead = true;
         if (d.kind === 'coin') { const v = Math.round(d.v * G.stats.greed); G.tipsRun += v; sfx('coin'); G.texts.push({ x: p.x, y: p.y - 16, v, life: 0.8, color: '#f5d142' }); }
-        if (d.kind === 'heart') { p.hp = Math.min(G.stats.maxHp, p.hp + healAmt(30)); sfx('pick'); }
+        if (d.kind === 'heart') { p.hp = Math.min(G.stats.maxHp, p.hp + healAmt(d.heal || 30)); sfx('pick'); }
         if (d.kind === 'box') openBox();
       }
     }
@@ -1225,6 +1229,7 @@ function update(dt) {
   updatePlayer(dt);
   checkTags();
   updateSlot(dt);
+  updateJackpots(dt);
   updateShelves(dt);
   if (skill() === 'welcome') {
     G.welcomeT = (G.welcomeT || 0) + dt;
@@ -1252,7 +1257,8 @@ function update(dt) {
   if (Math.floor(G.t) !== Math.floor(G.t - STEP)) checkUnlocks();
   if (G.t >= RUN_SECONDS && !G.overtime) { endRun(true); return; }
   if (G.overtime && G.t - G.otStart >= 300) achieve('OVERTIME');
-  if (G.pendingLevels > 0 && state === 'play') openLevelUp();
+  if (G.jackpotPick && state === 'play') openJackpot();
+  else if (G.pendingLevels > 0 && state === 'play') openLevelUp();
 }
 
 // ---------- render ----------
@@ -1655,9 +1661,11 @@ function checkTags() {
   }
 }
 
-// Sale tags pay out like a slot machine: one reel spins through the power-ups,
-// slows down and lands on the one you got (picked at pickup), then it applies.
-// Runs on game time, so it pauses with the game. Tags grabbed mid-spin queue up.
+// Sale tags pay out like a slot machine: three reels spin and stop left to
+// right. Usually all three match and you get that power-up. Rarely (a jackpot)
+// all three differ and you pick one to keep, as a permanent twist, all run.
+// The outcome is decided at pickup; the spin runs on game time, so it pauses
+// with the game. Tags grabbed mid-spin queue up.
 const SLOT_HOLD = 0.6;
 function spinSlot(pu, x, y) {
   G.slotQ = G.slotQ || [];
@@ -1667,10 +1675,22 @@ function spinSlot(pu, x, y) {
 function nextSlot() {
   const q = G.slotQ.shift();
   if (!q) { G.slot = null; $('#slot').className = ''; return; }
-  const n = POWERUPS.length, start = Math.floor(rng() * n), target = POWERUPS.indexOf(q.pu);
-  // Each spin runs a different length (0.8-1.9s) and a different number of laps.
-  const dur = rand(0.8, 1.9), laps = 2 + Math.floor(dur * 2);
-  G.slot = { ...q, t: 0, dur, start, travel: n * laps + ((target - start) % n + n) % n, last: -1, paid: false };
+  const n = POWERUPS.length;
+  // Jackpot only if there are three power-ups whose jackpot you don't own yet.
+  const open = POWERUPS.filter((p) => !G.jackpots[p.id]);
+  let faces = [q.pu, q.pu, q.pu], jackpot = false;
+  if (open.length >= 3 && (q.jackpot || rng() < JACKPOT_CHANCE)) {
+    const pool = open.slice(); faces = [];
+    for (let k = 0; k < 3; k++) faces.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+    jackpot = true;
+  }
+  // Each spin runs a different length (0.8-1.9s); reels stop one after another.
+  const dur = rand(0.8, 1.9);
+  const reels = faces.map((f, k) => {
+    const start = Math.floor(rng() * n), target = POWERUPS.indexOf(f);
+    return { start, stop: dur * (0.55 + 0.225 * k), travel: n * (2 + k + Math.floor(dur * 2)) + ((target - start) % n + n) % n, last: -1 };
+  });
+  G.slot = { ...q, t: 0, dur, reels, faces, jackpot, paid: false };
   $('#slot b').textContent = '';
   $('#slot').className = 'on';
 }
@@ -1678,25 +1698,86 @@ function updateSlot(dt) {
   const sl = G.slot;
   if (!sl) return;
   sl.t += dt;
-  const u = Math.min(1, sl.t / sl.dur), pos = sl.travel * (1 - (1 - u) ** 3); // fast, then eases to a stop
-  const step = Math.floor(pos);
-  if (step !== sl.last) { sl.last = step; if (u < 1) sfx('ui'); }
-  sl.pos = pos;
-  if (u >= 1 && !sl.paid) {
+  for (const r of sl.reels) {
+    const u = Math.min(1, sl.t / r.stop);
+    r.pos = r.travel * (1 - (1 - u) ** 3); // fast, then eases to a stop
+    const step = Math.floor(r.pos);
+    if (step !== r.last) { r.last = step; if (u < 1 && r === sl.reels[0]) sfx('ui'); }
+  }
+  if (sl.t >= sl.dur && !sl.paid) {
     sl.paid = true;
-    applyPowerup(sl.pu, G.player.x, G.player.y);
-    $('#slot b').textContent = `${sl.pu.icon} ${T(`powerups.${sl.pu.id}.name`)}`;
-    $('#slot').className = 'on win';
+    if (sl.jackpot) {
+      G.jackpotPick = sl.faces.map((f) => f.id);
+      $('#slot b').textContent = '🎰 JACKPOT! Pick one';
+      $('#slot').className = 'on jackpot';
+      sfx('boss');
+    } else {
+      applyPowerup(sl.pu, G.player.x, G.player.y);
+      $('#slot b').textContent = `${sl.pu.icon} ${T(`powerups.${sl.pu.id}.name`)}`;
+      $('#slot').className = 'on win';
+    }
   }
   if (sl.t >= sl.dur + SLOT_HOLD) nextSlot();
 }
 function renderSlot() {
   const sl = G && G.slot;
-  if (!sl || sl.pos === undefined) return;
-  const n = POWERUPS.length, i = sl.start + Math.floor(sl.pos), frac = sl.pos - Math.floor(sl.pos);
-  const [a, b] = document.querySelectorAll('#slot .reel span');
-  a.textContent = POWERUPS[i % n].icon; b.textContent = POWERUPS[(i + 1) % n].icon;
-  a.style.transform = `translateY(${-frac * 100}%)`; b.style.transform = `translateY(${(1 - frac) * 100}%)`;
+  if (!sl) return;
+  const n = POWERUPS.length, els = document.querySelectorAll('#slot .reel');
+  sl.reels.forEach((r, k) => {
+    if (r.pos === undefined) return;
+    const i = r.start + Math.floor(r.pos), frac = r.pos - Math.floor(r.pos);
+    const [a, b] = els[k].children;
+    a.textContent = POWERUPS[i % n].icon; b.textContent = POWERUPS[(i + 1) % n].icon;
+    a.style.transform = `translateY(${-frac * 100}%)`; b.style.transform = `translateY(${(1 - frac) * 100}%)`;
+  });
+}
+
+// Jackpot pick: pauses like a level-up and waits its turn with them.
+function openJackpot() {
+  state = 'jackpot';
+  const ids = G.jackpotPick;
+  show(`<h2>🎰 JACKPOT!</h2><p class="sub">Three different symbols. Pick one: it lasts the whole shift.</p>
+    <div class="choices">${ids.map((id, i) => {
+      const pu = POWERUPS.find((p) => p.id === id), j = JACKPOTS[id];
+      return `<button class="btn choice jp" data-act="jackpot" data-arg="${id}">
+        <div class="ic">${pu.icon}</div><div><b>${j.name}</b> <em>ALL RUN</em><span>${j.desc}</span></div><kbd>${i + 1}</kbd></button>`;
+    }).join('')}</div>`);
+}
+function takeJackpot(id) {
+  const j = JACKPOTS[id];
+  G.jackpots[id] = true; G.jackpotPick = null;
+  G.jpT[id] = j.every ? 1 : 0; // timed ones fire almost right away, then every j.every seconds
+  sfx('evolve');
+  announce(`🎰 ${j.name}: ${j.desc}`, true);
+}
+
+// Permanent jackpot effects that run on timers.
+function updateJackpots(dt) {
+  const p = G.player;
+  for (const id in G.jackpots) {
+    const j = JACKPOTS[id];
+    if (j.cooldown) { G.jpT[id] = Math.max(0, G.jpT[id] - dt); continue; }
+    if (!j.every || (G.jpT[id] -= dt) > 0) continue;
+    G.jpT[id] = j.every;
+    if (j.buff) G.buffs[j.buff] = Math.max(G.buffs[j.buff] || 0, j.dur * G.stats.buffDur);
+    if (id === 'clearance') for (const g of G.gems) if (onScreen(g)) g.pull = true;
+    if (id === 'sample') {
+      let x = p.x, y = p.y;
+      for (let k = 0; k < 8; k++) {
+        const a = rand(0, Math.PI * 2), d = rand(40, 80);
+        x = p.x + Math.cos(a) * d; y = p.y + Math.sin(a) * d;
+        if (!G.store || (inside(G.store, x, y, 16) && walkable(G.store, x, y))) break;
+      }
+      G.drops.push({ x, y, kind: 'heart', heal: 15 });
+    }
+  }
+}
+
+function evacuateBlast() {
+  const p = G.player;
+  G.fx.push({ kind: 'ring', x: p.x, y: p.y, r: 4, maxR: 130, life: 0.5, max: 0.5, dmg: 0, knock: 260, hits: new Set() });
+  for (const e of G.enemies) if (!e.def.boss && dist2(e, p) < 130 * 130) { curSrc = 'powerup'; damageEnemy(e, e.def.elite ? 150 : 9999, 0, 0, 0); }
+  G.shake = Math.max(G.shake, 0.6);
 }
 
 function applyPowerup(pu, x, y) {
@@ -1705,11 +1786,7 @@ function applyPowerup(pu, x, y) {
   if (pu.dur) G.buffs[pu.id] = pu.dur * G.stats.buffDur;
   if (pu.id === 'clearance') for (const g of G.gems) g.pull = true; // the whole map's receipts, not just on screen
   if (pu.id === 'sample') p.hp = Math.min(G.stats.maxHp, p.hp + healAmt(30));
-  if (pu.id === 'evacuate') {
-    G.fx.push({ kind: 'ring', x: p.x, y: p.y, r: 4, maxR: 130, life: 0.5, max: 0.5, dmg: 0, knock: 260, hits: new Set() });
-    for (const e of G.enemies) if (!e.def.boss && dist2(e, p) < 130 * 130) { curSrc = 'powerup'; damageEnemy(e, e.def.elite ? 150 : 9999, 0, 0, 0); }
-    G.shake = Math.max(G.shake, 0.6);
-  }
+  if (pu.id === 'evacuate') evacuateBlast();
   for (let k = 0; k < 16; k++) G.parts.push({ x, y, vx: rand(-70, 70), vy: rand(-90, 10), life: 0.5, c: k % 2 ? '#e04848' : '#ffffff' });
   sfx('evolve');
   announce(`${pu.icon} ${T(`powerups.${pu.id}.name`)}: ${T(`powerups.${pu.id}.desc`)}`);
@@ -1784,7 +1861,8 @@ function renderHud() {
   if (!G || state === 'menu') { ui.hud.style.display = 'none'; return; }
   ui.hud.style.display = '';
   const w = G.weapons.map((x) => `<span class="slot${x.evolved ? ' evo' : ''}">${ICONS[x.id]}<b>${x.evolved ? '★' : x.lv}</b></span>`).join('');
-  const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('');
+  const ps = Object.entries(G.passives).map(([id, lv]) => `<span class="slot small">${ICONS[id]}<b>${lv}</b></span>`).join('')
+    + Object.keys(G.jackpots).map((id) => `<span class="slot small jp">${POWERUPS.find((q) => q.id === id).icon}</span>`).join('');
   const html = `<div class="xpbar"><i style="width:${Math.min(100, ((G.xp + G.xpBank) / G.xpNeed) * 100)}%"></i><div style="width:${(G.xp / G.xpNeed) * 100}%"></div><span>${T('ui.lv', { n: G.level })}</span></div>
     ${riotOn() ? '' : '<!--'}<div class="riotbar${G.rioting ? ' on' : ''}"><div style="width:${G.riot}%"></div><span>${T(G.rioting ? 'ui.riotHudOn' : 'ui.riotHud')}</span></div>${riotOn() ? '' : '-->'}
     <div class="row"><div class="slots">${w}</div><div class="clock">${clockText()}<small>${T(G.overtime ? 'ui.overtimeHud' : G.t < BOSS_AT ? 'ui.shiftEnds' : 'ui.holdOn')}</small></div>
@@ -1839,7 +1917,7 @@ function menuInput() {
   if (pressed.has('ArrowRight') || pressed.has('KeyD')) move(1, 0);
   if (pressed.has('ArrowLeft') || pressed.has('KeyA')) move(-1, 0);
   if (pressed.has('Enter') || pressed.has('Space')) list[focusIdx]?.click();
-  for (let i = 1; i <= 4; i++) if (pressed.has('Digit' + i) && state === 'levelup') list[i - 1]?.click();
+  for (let i = 1; i <= 4; i++) if (pressed.has('Digit' + i) && (state === 'levelup' || state === 'jackpot')) list[i - 1]?.click();
   if (pressed.has('KeyR') && state === 'levelup') $('#reroll')?.click();
   // Shoulder buttons (or Q/E) flip through a screen's tabs.
   const tabs = [...ui.screen.querySelectorAll('.tabs .btn')];
@@ -1877,6 +1955,7 @@ const ACTIONS = {
   quit: () => window.close(),
   resume: () => resume(),
   choose: (i) => { const c = G.choices[+i]; sfx('pick'); applyChoice(c); G.pendingLevels--; G.choices = null; if (G.pendingLevels > 0) openLevelUp(); else { state = 'play'; show(''); } },
+  jackpot: (id) => { sfx('pick'); takeJackpot(id); state = 'play'; show(''); },
   reroll: () => { if (G.rerolls > 0) { G.rerolls--; G.choices = buildChoices(G.choices || []); renderLevelUp(); } },
   buy: (id) => {
     const m = META[id], lv = metaLv(id);
@@ -2176,6 +2255,7 @@ function frame(now) {
     acc = 0;
     menuInput();
     // Autopilot (trailers, demos) picks its own upgrades after a beat on screen.
+    if (autopilot && state === 'jackpot') ACTIONS.jackpot(G.jackpotPick[0]);
     if (autopilot && state === 'levelup') {
       autoPickT = (autoPickT || 0) + dt;
       if (autoPickT > 0.6) { autoPickT = 0; ACTIONS.choose(botChoice()); }
@@ -2217,7 +2297,7 @@ window.__db = {
   get G() { return G; }, get state() { return state; }, get save() { return save; },
   start: (charId = 'stocker', seed = 1, map = 'floor') => startRun(charId, seed, map),
   overtime: () => startOvertime(),
-  slot: (i = 0) => spinSlot(POWERUPS[i], G.player.x, G.player.y),
+  slot: (i = 0, jackpot = false) => { spinSlot(POWERUPS[i], G.player.x, G.player.y); if (jackpot) G.slotQ.push({ pu: POWERUPS[i], x: 0, y: 0, jackpot }); },
   setLang: (c) => { setLang(c); if (state === 'menu') showMenu(); },
   missingKeys,
   // Nearest untaken sale tag to the player, in world units.
@@ -2236,6 +2316,7 @@ window.__db = {
     const end = G.t + seconds;
     while (state !== 'over' && G.t < end) {
       if (state === 'levelup') { ACTIONS.choose(botChoice()); continue; }
+      if (state === 'jackpot') { ACTIONS.jackpot(G.jackpotPick[0]); continue; }
       if (state !== 'play') break;
       update(STEP);
     }

@@ -137,8 +137,14 @@ body.touch .ptile { min-height: 0; }
 /* Sale-tag slot machine: one reel above the player that spins and lands on the power-up. */
 #slot { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); display: none; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
 #slot.on { display: flex; }
-#slot .reel { width: 54px; height: 54px; overflow: hidden; background: #f3f1ea; border: 4px solid #1b1a24; border-radius: 8px; box-shadow: 0 0 0 3px #e04848, 0 4px 0 3px #8a2a26; position: relative; }
+#slot .reels { display: flex; gap: 4px; padding: 5px; background: #e04848; border: 3px solid #1b1a24; border-radius: 10px; }
+#slot .reel { width: 48px; height: 48px; overflow: hidden; background: #f3f1ea; border: 4px solid #1b1a24; border-radius: 8px; box-shadow: 0 0 0 3px #e04848, 0 4px 0 3px #8a2a26; position: relative; }
 #slot .reel span { position: absolute; left: 0; width: 100%; height: 100%; display: grid; place-items: center; font-size: 30px; }
 #slot b { font-size: 14px; padding: 2px 8px; background: rgba(0,0,0,.75); border-radius: 4px; opacity: 0; }
-#slot.win .reel { box-shadow: 0 0 0 3px #f5d142, 0 0 18px 6px rgba(245,209,66,.8); }
+#slot .reel { box-shadow: none; border-width: 3px; }
+#slot.win .reels { background: #f5d142; box-shadow: 0 0 18px 6px rgba(245,209,66,.8); }
+#slot.jackpot .reels { background: #9b59b6; box-shadow: 0 0 22px 8px rgba(190,120,255,.9); }
+#slot.jackpot b { opacity: 1; }
+.slot.jp { border-color: #f5d142; }
+.choice.jp { border-color: #9b59b6; }
 #slot.win b { opacity: 1; }

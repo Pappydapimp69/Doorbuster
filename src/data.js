@@ -353,6 +353,20 @@ export const POWERUPS = [
   { id: 'sample', name: 'Free Sample', desc: 'Heal 30 HP', icon: '🍪', weight: 3 },
   { id: 'evacuate', name: 'Everything Must Go', desc: 'Knocks out shoppers around you', icon: '🚨', weight: 0.5 },
 ];
+// Slot-machine jackpots: when the three reels land on three different symbols
+// you pick one, and keep it for the whole run. Each is a repeating, store-policy
+// twist on its power-up rather than a flat stat. Keyed by power-up id.
+export const JACKPOT_CHANCE = 0.12;
+export const JACKPOTS = {
+  deal: { name: 'Black Friday Every Day', desc: 'Double damage for 4s, every 45s.', every: 45, buff: 'deal', dur: 4 },
+  rush: { name: 'Express Lane', desc: 'Every time you get hit: Rush Hour for 2s.' },
+  markdown: { name: 'Clearance Rack', desc: 'Weapons fire twice as fast for 3s, every 40s.', every: 40, buff: 'markdown', dur: 3 },
+  freeze: { name: 'Price Lock', desc: 'Shoppers who touch you freeze for 1s.' },
+  clearance: { name: 'Receipt Printer', desc: 'Every 30s, every receipt on screen flies to you.', every: 30 },
+  sample: { name: 'Sample Station', desc: 'A snack (heals 15) shows up near you every 25s.', every: 25 },
+  evacuate: { name: 'Store Closing', desc: 'Dropping below 25% HP fires Everything Must Go (once per 60s).', cooldown: 60 },
+};
+
 // Restock or Riot. Shelves sit on a fixed grid of floor tiles; shoppers who
 // crowd one strip it; empty shelves near you fill the riot meter; standing
 // still beside a shelf restocks it.
