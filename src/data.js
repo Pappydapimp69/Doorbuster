@@ -390,7 +390,7 @@ export const RIOT = {
 
 // Sale tags: 3 on the floor at the start; after that only Deal Hunters bring them.
 // Deal Hunter n (1, 2, 3...) arrives at 60 x (1 + C(n+2, 4)) total knockouts: 60, 120, 360, 960, 2160, 4260...
-export const TAGS = { start: 3, perHunter: 3, dropChance: 0.01, hunterKills: 60 };
+export const TAGS = { start: 3, perHunter: 3, dropChance: 0.005, hunterKills: 60 };
 
 export const ACHIEVEMENTS = {
   FIRST_SHIFT: 'Clocked Out — survive a full shift',
