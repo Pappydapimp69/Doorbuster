@@ -214,7 +214,7 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
     rerolls: 0, revives: 0, banished: new Set(), jackpots: {}, jpT: {}, jackpotPick: null,
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
-    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, tags: [], tagDrops: 0, hunters: 0, nextHunter: TAGS.hunterFirst, powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
+    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, tags: [], tagDrops: 0, hunters: 0, nextHunter: hunterAt(1), powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
   };
   // Departments with a floor plan are bounded stores with solid shelves.
   G.store = buildStore(G.stage.layout);
@@ -302,6 +302,9 @@ function storeSpot(x, y, ang, d) {
   return [door.x + rand(-30, 30), s.h + rand(20, 50)];
 }
 
+// Knockouts at which Deal Hunter n shows up: 60, 120, 360, 960, 2160...
+function hunterAt(n) { const m = n + 2; return TAGS.hunterKills * (1 + (m * (m - 1) * (m - 2) * (m - 3)) / 24); }
+
 function director(dt) {
   const t = G.t;
   const minute = Math.min(9, Math.floor(t / 60));
@@ -342,7 +345,7 @@ function director(dt) {
   }
   // A Deal Hunter every so many knockouts, a little further apart each time.
   if (G.kills >= G.nextHunter) {
-    G.hunters++; G.nextHunter = G.kills + TAGS.hunterStep + TAGS.hunterGrow * G.hunters;
+    G.hunters++; G.nextHunter = hunterAt(G.hunters + 1);
     spawnEnemy('hunter');
     announce(T('ui.hunterHere'));
   }
