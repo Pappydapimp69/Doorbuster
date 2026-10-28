@@ -1658,7 +1658,7 @@ function checkTags() {
 // Sale tags pay out like a slot machine: one reel spins through the power-ups,
 // slows down and lands on the one you got (picked at pickup), then it applies.
 // Runs on game time, so it pauses with the game. Tags grabbed mid-spin queue up.
-const SLOT_SPIN = 1.1, SLOT_HOLD = 0.6;
+const SLOT_HOLD = 0.6;
 function spinSlot(pu, x, y) {
   G.slotQ = G.slotQ || [];
   G.slotQ.push({ pu, x, y });
@@ -1668,7 +1668,9 @@ function nextSlot() {
   const q = G.slotQ.shift();
   if (!q) { G.slot = null; $('#slot').className = ''; return; }
   const n = POWERUPS.length, start = Math.floor(rng() * n), target = POWERUPS.indexOf(q.pu);
-  G.slot = { ...q, t: 0, start, travel: n * 3 + ((target - start) % n + n) % n, last: -1, paid: false };
+  // Each spin runs a different length (0.8-1.9s) and a different number of laps.
+  const dur = rand(0.8, 1.9), laps = 2 + Math.floor(dur * 2);
+  G.slot = { ...q, t: 0, dur, start, travel: n * laps + ((target - start) % n + n) % n, last: -1, paid: false };
   $('#slot b').textContent = '';
   $('#slot').className = 'on';
 }
@@ -1676,7 +1678,7 @@ function updateSlot(dt) {
   const sl = G.slot;
   if (!sl) return;
   sl.t += dt;
-  const u = Math.min(1, sl.t / SLOT_SPIN), pos = sl.travel * (1 - (1 - u) ** 3); // fast, then eases to a stop
+  const u = Math.min(1, sl.t / sl.dur), pos = sl.travel * (1 - (1 - u) ** 3); // fast, then eases to a stop
   const step = Math.floor(pos);
   if (step !== sl.last) { sl.last = step; if (u < 1) sfx('ui'); }
   sl.pos = pos;
@@ -1686,7 +1688,7 @@ function updateSlot(dt) {
     $('#slot b').textContent = `${sl.pu.icon} ${T(`powerups.${sl.pu.id}.name`)}`;
     $('#slot').className = 'on win';
   }
-  if (sl.t >= SLOT_SPIN + SLOT_HOLD) nextSlot();
+  if (sl.t >= sl.dur + SLOT_HOLD) nextSlot();
 }
 function renderSlot() {
   const sl = G && G.slot;
