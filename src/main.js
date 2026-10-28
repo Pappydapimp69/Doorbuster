@@ -221,8 +221,7 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
   if (G.store) { G.player.x = G.store.start.x; G.player.y = G.store.start.y; G.flowT = 0; updateFlow(G.store, G.player.x, G.player.y); }
   // Three sale tags on the floor near the start; later ones come from Deal Hunters.
   for (let k = 0; k < TAGS.start; k++) {
-    const a = -Math.PI / 2 + (k - 1) * 0.9;
-    let x = G.player.x + Math.cos(a) * 110, y = G.player.y + Math.sin(a) * 110;
+    let x = G.player.x + (k - 1) * 80, y = G.player.y - (k === 1 ? 60 : 45); // a row just ahead, clear of the opening banner
     if (G.store) [x, y] = freeSpotNear(x, y);
     G.tags.push({ x, y });
   }
