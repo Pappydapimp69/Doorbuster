@@ -1221,6 +1221,7 @@ function update(dt) {
   if (G.stats.regen && !G.dying) G.player.hp = Math.min(G.stats.maxHp, G.player.hp + G.stats.regen * dt);
   updatePlayer(dt);
   checkTags();
+  updateSlot(dt);
   updateShelves(dt);
   if (skill() === 'welcome') {
     G.welcomeT = (G.welcomeT || 0) + dt;
@@ -1257,6 +1258,7 @@ function render() {
   cx.fillStyle = G ? G.stage.bg : '#c9c6bd';
   cx.fillRect(0, 0, W, H);
   if (!G) return;
+  renderSlot();
   const p = G.player;
   const sh = save.settings.shake ? G.shake * G.shake * 6 : 0;
   camX = Math.round(p.x - W / 2 + rand(-sh, sh));
@@ -1646,8 +1648,50 @@ function checkTags() {
     if (!tagAt(i, j)) continue;
     if (Math.hypot(p.x - (i * TILE + 12), p.y - (j * TILE + 12)) > 11) continue;
     G.usedTags.add(i + ',' + j); // gone the instant it's taken
-    applyPowerup(pickPowerup(), i * TILE + 12, j * TILE + 12);
+    spinSlot(pickPowerup(), i * TILE + 12, j * TILE + 12);
   }
+}
+
+// Sale tags pay out like a slot machine: one reel spins through the power-ups,
+// slows down and lands on the one you got (picked at pickup), then it applies.
+// Runs on game time, so it pauses with the game. Tags grabbed mid-spin queue up.
+const SLOT_SPIN = 1.1, SLOT_HOLD = 0.6;
+function spinSlot(pu, x, y) {
+  G.slotQ = G.slotQ || [];
+  G.slotQ.push({ pu, x, y });
+  if (!G.slot) nextSlot();
+}
+function nextSlot() {
+  const q = G.slotQ.shift();
+  if (!q) { G.slot = null; $('#slot').className = ''; return; }
+  const n = POWERUPS.length, start = Math.floor(rng() * n), target = POWERUPS.indexOf(q.pu);
+  G.slot = { ...q, t: 0, start, travel: n * 3 + ((target - start) % n + n) % n, last: -1, paid: false };
+  $('#slot b').textContent = '';
+  $('#slot').className = 'on';
+}
+function updateSlot(dt) {
+  const sl = G.slot;
+  if (!sl) return;
+  sl.t += dt;
+  const u = Math.min(1, sl.t / SLOT_SPIN), pos = sl.travel * (1 - (1 - u) ** 3); // fast, then eases to a stop
+  const step = Math.floor(pos);
+  if (step !== sl.last) { sl.last = step; if (u < 1) sfx('ui'); }
+  sl.pos = pos;
+  if (u >= 1 && !sl.paid) {
+    sl.paid = true;
+    applyPowerup(sl.pu, G.player.x, G.player.y);
+    $('#slot b').textContent = `${sl.pu.icon} ${T(`powerups.${sl.pu.id}.name`)}`;
+    $('#slot').className = 'on win';
+  }
+  if (sl.t >= SLOT_SPIN + SLOT_HOLD) nextSlot();
+}
+function renderSlot() {
+  const sl = G && G.slot;
+  if (!sl || sl.pos === undefined) return;
+  const n = POWERUPS.length, i = sl.start + Math.floor(sl.pos), frac = sl.pos - Math.floor(sl.pos);
+  const [a, b] = document.querySelectorAll('#slot .reel span');
+  a.textContent = POWERUPS[i % n].icon; b.textContent = POWERUPS[(i + 1) % n].icon;
+  a.style.transform = `translateY(${-frac * 100}%)`; b.style.transform = `translateY(${(1 - frac) * 100}%)`;
 }
 
 function applyPowerup(pu, x, y) {
@@ -2022,6 +2066,7 @@ function startRun(charId, seed, map) {
   initAudio();
   audio.sfx = save.settings.sfx; audio.music = save.settings.music; setVolumes();
   newRun(charId, seed, map);
+  $('#slot').className = '';
   state = 'play';
   show('');
   startMusic('shift');
@@ -2037,6 +2082,7 @@ function startRun(charId, seed, map) {
 function endRun(win) {
   if (state === 'over') return;
   state = 'over';
+  $('#slot').className = '';
   stopMusic();
   setTimeout(() => { if (state === 'over') startMusic('menu'); }, 2200);
   clearTimeout(announce.t); ui.banner.className = '';
@@ -2166,6 +2212,7 @@ window.__db = {
   get G() { return G; }, get state() { return state; }, get save() { return save; },
   start: (charId = 'stocker', seed = 1, map = 'floor') => startRun(charId, seed, map),
   overtime: () => startOvertime(),
+  slot: (i = 0) => spinSlot(POWERUPS[i], G.player.x, G.player.y),
   setLang: (c) => { setLang(c); if (state === 'menu') showMenu(); },
   missingKeys,
   // Nearest untaken sale tag to the player, in world units.
