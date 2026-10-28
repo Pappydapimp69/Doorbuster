@@ -1493,12 +1493,23 @@ function drawStore() {
     const x = Math.round(r.x), y = Math.round(r.y);
     if (r.type === 'wall') {
       cx.fillStyle = '#3a3846'; cx.fillRect(x, y, r.w, r.h);
-      cx.fillStyle = '#2a2833'; cx.fillRect(x, r.coolers ? y + r.h - 6 : y, r.w, 6);
-      if (r.coolers) for (let k = Math.max(0, Math.floor((camX - x) / 30)); k * 30 < r.w && x + k * 30 < camX + W; k++) {
-        // Glass cooler doors with a strip of product behind them.
-        cx.fillStyle = '#9fd3e8'; cx.fillRect(x + k * 30 + 3, y + 8, 24, r.h - 16);
-        cx.fillStyle = COLORS[k % COLORS.length]; cx.fillRect(x + k * 30 + 6, y + 14, 18, 4); cx.fillRect(x + k * 30 + 6, y + 22, 18, 4);
-        cx.fillStyle = '#ffffff'; cx.fillRect(x + k * 30 + 25, y + 10, 1, r.h - 20);
+      cx.fillStyle = '#2a2833'; cx.fillRect(x, r.deco ? y + r.h - 6 : y, r.w, 6);
+      if (r.deco) for (let k = Math.max(0, Math.floor((camX - x) / 30)); k * 30 < r.w && x + k * 30 < camX + W; k++) {
+        const kx = x + k * 30;
+        if (r.deco === 'coolers') {
+          // Glass cooler doors with a strip of product behind them.
+          cx.fillStyle = '#9fd3e8'; cx.fillRect(kx + 3, y + 8, 24, r.h - 16);
+          cx.fillStyle = COLORS[k % COLORS.length]; cx.fillRect(kx + 6, y + 14, 18, 4); cx.fillRect(kx + 6, y + 22, 18, 4);
+          cx.fillStyle = '#ffffff'; cx.fillRect(kx + 25, y + 10, 1, r.h - 20);
+        } else if (r.deco === 'tvs') {
+          // A wall of TVs, all showing the same flickering picture.
+          cx.fillStyle = '#111'; cx.fillRect(kx + 2, y + 8, 26, r.h - 18);
+          cx.fillStyle = ['#3fd0ff', '#4cd36a', '#f5d142'][(Math.floor(G.t * 2) + (k >> 2)) % 3]; cx.fillRect(kx + 4, y + 10, 22, r.h - 22);
+          cx.fillStyle = 'rgba(255,255,255,0.35)'; cx.fillRect(kx + 4, y + 10, 22, 2);
+        } else {
+          // Plush and boxed sets stacked to the ceiling.
+          for (let j = 0; j < 3; j++) { cx.fillStyle = COLORS[(k * 3 + j) % COLORS.length]; cx.fillRect(kx + 3 + (j & 1) * 4, y + 6 + j * 9, 20, 8); }
+        }
       }
       if (r.doors) for (const d of st.doors) {
         cx.fillStyle = '#9fd3e8'; cx.fillRect(Math.round(d.x - 40), y + 4, 80, r.h - 10);
@@ -1510,7 +1521,7 @@ function drawStore() {
     cx.fillStyle = '#1b1a24'; cx.fillRect(x - 1, y - 1, r.w + 2, r.h + 2);
     if (r.type === 'shelf') {
       const sh = r.g;
-      cx.fillStyle = '#8a8f99'; cx.fillRect(x, y, r.w, r.h);
+      cx.fillStyle = r.style === 'case' ? '#b9e3f2' : '#8a8f99'; cx.fillRect(x, y, r.w, r.h); // glass case or metal shelf
       cx.fillStyle = '#5d626d'; cx.fillRect(x, y + (r.h >> 1), r.w, 1);
       // Products on both faces, as many as the stock level.
       const per = Math.floor((r.w - 4) / 4), n = Math.ceil(sh.stock * per);
@@ -1534,6 +1545,30 @@ function drawStore() {
       cx.fillStyle = ['#d8433b', '#3a8fd9', '#f5d142'][r.hue]; cx.fillRect(x, y, r.w, r.h);
       cx.fillStyle = '#f3f1ea'; cx.fillRect(x + 6, y + 6, r.w - 12, 10);
       cx.fillStyle = '#1b1a24'; cx.fillRect(x + 10, y + 9, r.w - 20, 2); cx.fillRect(x + 10, y + 12, (r.w - 20) >> 1, 2);
+    } else if (r.type === 'table') {
+      // Showroom table: laptops and phones on demo stands.
+      cx.fillStyle = '#d9d4c7'; cx.fillRect(x, y, r.w, r.h);
+      for (let k = 0; k < 3; k++) {
+        cx.fillStyle = '#2a2a2a'; cx.fillRect(x + 6 + k * 25, y + 8, 18, 12);
+        cx.fillStyle = ['#3fd0ff', '#4cd36a', '#f5d142'][(k + r.hue) % 3]; cx.fillRect(x + 7 + k * 25, y + 9, 16, 9);
+        cx.fillStyle = '#555a66'; cx.fillRect(x + 6 + k * 25, y + 28, 18, 6);
+      }
+    } else if (r.type === 'counter') {
+      cx.fillStyle = '#2f4a8a'; cx.fillRect(x, y, r.w, r.h);
+      cx.fillStyle = '#3fd0ff'; cx.fillRect(x + 4, y + 4, r.w - 8, 4);
+    } else if (r.type === 'bikes') {
+      // A rack of bikes, side by side.
+      cx.fillStyle = '#555a66'; cx.fillRect(x, y + r.h - 4, r.w, 4);
+      for (let k = 0; k * 22 < r.w - 16; k++) {
+        cx.fillStyle = '#1b1a24'; cx.fillRect(x + 4 + k * 22, y + 4, 6, 6); cx.fillRect(x + 12 + k * 22, y + 4, 6, 6);
+        cx.fillStyle = COLORS[k % COLORS.length]; cx.fillRect(x + 6 + k * 22, y + 2, 10, 3);
+      }
+    } else if (r.type === 'cage') {
+      // A wire cage full of bouncy balls.
+      cx.fillStyle = '#c9c6bd'; cx.fillRect(x, y, r.w, r.h);
+      for (let k = 0; k < 24; k++) { cx.fillStyle = COLORS[k % COLORS.length]; cx.fillRect(x + 6 + (k % 6) * 13, y + 6 + Math.floor(k / 6) * 19, 9, 9); }
+      cx.fillStyle = 'rgba(40,40,40,0.5)';
+      for (let k = 0; k <= r.w; k += 12) cx.fillRect(x + k, y, 1, r.h);
     } else if (r.type === 'register') {
       cx.fillStyle = '#555a66'; cx.fillRect(x, y, r.w, r.h);
       cx.fillStyle = '#1b1a24'; cx.fillRect(x + 3, y + 4, r.w - 6, 8);
@@ -1548,7 +1583,8 @@ function drawSigns() {
   for (const sg of G.store.signs) {
     if (Math.abs(sg.x - camX - W / 2) > W / 2 + 80 || Math.abs(sg.y - camY - H / 2) > H / 2 + 20) continue;
     cx.font = sg.big ? 'bold 16px sans-serif' : 'bold 11px sans-serif';
-    cx.fillStyle = sg.big ? 'rgba(40,40,60,0.28)' : 'rgba(40,40,60,0.45)';
+    const dark = G.stage.layout === 'electronics';
+    cx.fillStyle = dark ? (sg.big ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.4)') : (sg.big ? 'rgba(40,40,60,0.28)' : 'rgba(40,40,60,0.45)');
     cx.fillText(sg.text, Math.round(sg.x), Math.round(sg.y));
   }
 }

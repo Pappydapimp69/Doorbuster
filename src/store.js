@@ -2,8 +2,8 @@
 // each department has landmarks and the player can retrace their steps.
 // Shelves are solid (things slide along them); shots fly over them.
 //
-// Main Floor follows a Walmart-style grid: columns of shelf runs with aisles
-// between the rows, the same gap between neighbouring columns, and wider
+// Every department follows a Walmart-style grid: columns of shelf runs with
+// aisles between the rows, the same gap between neighbouring columns, and wider
 // "action alleys" every two columns with displays down their centre.
 
 const A = 100;        // aisle gap: about 10x the player's width
@@ -15,71 +15,118 @@ const WALL = 40;
 export const CELL = 16; // path grid
 
 export function buildStore(kind) {
-  if (kind !== 'grocery') return null;
+  const plan = PLANS[kind];
+  if (!plan) return null;
   const rects = [], gondolas = [], signs = [], deco = [];
   const add = (x, y, w, h, type, extra = {}) => { const r = { x, y, w, h, type, ...extra }; rects.push(r); return r; };
-
-  // Columns: two shelf columns, an action alley, two more, an alley, two more.
-  const cols = [];
-  let x = PERIM;
-  for (let c = 0; c < 6; c++) {
-    cols.push(x);
-    x += SHELF_L + (c % 2 === 0 ? A : (c < 5 ? ALLEY : 0));
-  }
-  const width = x + PERIM;
-  const ROWS = 8, top = PERIM;
-  const rowY = (r) => top + r * (SHELF_T + A);
-  const shelvesBottom = rowY(ROWS - 1) + SHELF_T;
-
-  // Produce: the front-left corner block is open bins instead of shelf runs.
-  const produce = (c, r) => c < 2 && r >= ROWS - 3;
-  for (let c = 0; c < 6; c++) for (let r = 0; r < ROWS; r++) {
-    if (produce(c, r)) continue;
-    const g = add(cols[c], rowY(r), SHELF_L, SHELF_T, 'shelf');
-    // The Restock or Riot shelf for this run: centre plus its footprint.
-    g.g = { key: `${c},${r}`, x: g.x + g.w / 2, y: g.y + g.h / 2, rx: g.x, ry: g.y, rw: g.w, rh: g.h, stock: 1, low: false, fill: 0 };
+  const top = PERIM, rowY = (r) => top + r * (SHELF_T + A);
+  // A stockable shelf run (Restock or Riot uses its centre plus footprint).
+  const shelf = (x, y, key, style) => {
+    const g = add(x, y, SHELF_L, SHELF_T, 'shelf', { style });
+    g.g = { key, x: g.x + g.w / 2, y: g.y + g.h / 2, rx: g.x, ry: g.y, rw: g.w, rh: g.h, stock: 1, low: false, fill: 0 };
     gondolas.push(g.g);
-  }
-  const pY0 = rowY(ROWS - 3), pX0 = cols[0];
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) {
-    add(pX0 + 20 + i * 120, pY0 + 10 + j * 110, 56, 44, 'bin', { hue: (i * 3 + j) % 4 });
-  }
+  };
+  // A pair of shelf columns, one aisle apart, rows an aisle apart; aisle numbers on the left.
+  let aisle = 1;
+  const block = (x, rows, skip = () => false, style) => {
+    for (let c = 0; c < 2; c++) for (let r = 0; r < rows; r++) if (!skip(c, r)) shelf(x + c * (SHELF_L + A), rowY(r), `${x},${c},${r}`, style);
+    for (let r = 0; r < rows - 1; r++) if (!(skip(0, r) && skip(0, r + 1))) signs.push({ x: x - 14, y: rowY(r) + SHELF_T + A / 2, text: String(aisle++) });
+    return x + 2 * SHELF_L + A;
+  };
+  const BLOCK_W = 2 * SHELF_L + A;
+  // An action alley: displays centred in it, half an aisle apart.
+  const alley = (x, bottom, hue = 0) => {
+    for (let y = top; y + 36 <= bottom; y += 36 + A / 2) add(x + ALLEY / 2 - 26, y, 52, 36, 'display', { hue: (y / 86 + hue) % 3 | 0 });
+    return x + ALLEY;
+  };
+  const ctx = { add, shelf, block, alley, rowY, top, signs, BLOCK_W };
+  const { width, shelvesBottom, wallDeco } = plan(ctx);
 
-  // Displays down the centre of each action alley, half an aisle apart.
-  for (let k = 0; k < 2; k++) {
-    const ax = cols[1 + k * 2] + SHELF_L + ALLEY / 2;
-    for (let y = top; y + 36 <= shelvesBottom; y += 36 + A / 2) add(ax - 26, y, 52, 36, 'display', { hue: (y / 86 + k) % 3 | 0 });
-  }
-
-  // Front of store: a wide racetrack, then a row of checkout lanes.
+  // Front of store: a wide racetrack, then checkout lanes (and anything the plan put there).
   const frontY = shelvesBottom + 220;
-  for (let lx = 300; lx + 16 < width - 300; lx += 96) add(lx, frontY, 16, 52, 'register');
+  const regFrom = plan.registersFrom ? plan.registersFrom(width) : 300;
+  for (let lx = regFrom; lx + 16 < width - 300; lx += 96) add(lx, frontY, 16, 52, 'register');
+  if (plan.front) plan.front(ctx, frontY, width);
   const height = frontY + 52 + 210;
 
-  // Outer walls (solid), with coolers along the back and doors in the front.
-  add(-WALL, -WALL, width + WALL * 2, WALL, 'wall', { coolers: true });
+  // Outer walls (solid): the back wall is decorated per department; doors in the front.
+  add(-WALL, -WALL, width + WALL * 2, WALL, 'wall', { deco: wallDeco });
   add(-WALL, height, width + WALL * 2, WALL, 'wall', { doors: true });
   add(-WALL, 0, WALL, height, 'wall');
   add(width, 0, WALL, height, 'wall');
   const doors = [{ x: width * 0.25, y: height - 30 }, { x: width * 0.75, y: height - 30 }];
-
-  // Department signs on the floor (big) and aisle numbers at each alley mouth.
-  signs.push({ x: width * 0.25, y: 60, text: 'DAIRY', big: true }, { x: width * 0.75, y: 60, text: 'MEAT & DELI', big: true });
-  signs.push({ x: (cols[0] + cols[1] + SHELF_L) / 2, y: pY0 - 40, text: 'PRODUCE', big: true });
-  signs.push({ x: (cols[2] + cols[3] + SHELF_L) / 2, y: top - 40, text: 'GROCERY', big: true });
-  signs.push({ x: (cols[4] + cols[5] + SHELF_L) / 2, y: top - 40, text: 'HOME', big: true });
-  signs.push({ x: width / 2, y: frontY - 40, text: 'CHECKOUT', big: true });
-  signs.push({ x: width / 2, y: height - 70, text: 'ENTRANCE', big: true });
-  let n = 1;
-  for (let c = 0; c < 6; c += 2) for (let r = 0; r < ROWS - 1; r++) {
-    if (produce(c, r) && produce(c, r + 1)) continue;
-    signs.push({ x: cols[c] - 14, y: rowY(r) + SHELF_T + A / 2, text: String(n++) });
-  }
+  signs.push({ x: width / 2, y: frontY - 40, text: 'CHECKOUT', big: true }, { x: width / 2, y: height - 70, text: 'ENTRANCE', big: true });
 
   const s = { kind, w: width, h: height, rects, gondolas, signs, deco, doors, start: { x: width / 2, y: height - 120 } };
   buildGrids(s);
   return s;
 }
+
+// One floor plan per department, all on the same grid rules.
+const PLANS = {
+  // Main Floor: two columns, an action alley, two, an alley, two. Produce bins
+  // take the front-left corner; dairy and meat coolers line the back wall.
+  grocery({ add, block, alley, rowY, top, signs, BLOCK_W }) {
+    const ROWS = 8, bottom = rowY(ROWS - 1) + SHELF_T;
+    const produce = (c, r) => r >= ROWS - 3;
+    let x = block(PERIM, ROWS, produce);
+    const pY0 = rowY(ROWS - 3);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) add(PERIM + 20 + i * 120, pY0 + 10 + j * 110, 56, 44, 'bin', { hue: (i * 3 + j) % 4 });
+    x = alley(x, bottom, 0);
+    const b2 = x; x = block(x, ROWS);
+    x = alley(x, bottom, 1);
+    const b3 = x; x = block(x, ROWS);
+    const width = x + PERIM;
+    signs.push({ x: width * 0.25, y: 60, text: 'DAIRY', big: true }, { x: width * 0.75, y: 60, text: 'MEAT & DELI', big: true });
+    signs.push({ x: PERIM + BLOCK_W / 2, y: pY0 - 40, text: 'PRODUCE', big: true });
+    signs.push({ x: b2 + BLOCK_W / 2, y: top - 40, text: 'GROCERY', big: true }, { x: b3 + BLOCK_W / 2, y: top - 40, text: 'HOME', big: true });
+    return { width, shelvesBottom: bottom, wallDeco: 'coolers' };
+  },
+
+  // Electronics: gaming aisles, a demo-kiosk alley, an open showroom of laptop
+  // and phone tables, another alley, then locked glass cases. TVs cover the back wall.
+  electronics({ add, block, alley, rowY, top, signs, BLOCK_W }) {
+    const ROWS = 7, bottom = rowY(ROWS - 1) + SHELF_T;
+    let x = block(PERIM, ROWS);
+    x = alley(x, bottom, 1);
+    const show = x, SHOW_W = 640;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 6; j++) add(show + 60 + i * 220, top + 10 + j * 150, 80, 44, 'table', { hue: (i + j) % 3 });
+    x = alley(show + SHOW_W, bottom, 2);
+    const cases = x; x = block(x, ROWS, undefined, 'case');
+    const width = x + PERIM;
+    signs.push({ x: width / 2, y: 60, text: 'TV & HOME THEATER', big: true });
+    signs.push({ x: PERIM + BLOCK_W / 2, y: top - 40, text: 'GAMING', big: true }, { x: show + SHOW_W / 2, y: top - 40, text: 'COMPUTERS', big: true });
+    signs.push({ x: cases + BLOCK_W / 2, y: top - 40, text: 'PHONES', big: true });
+    return { width, shelvesBottom: bottom, wallDeco: 'tvs' };
+  },
+
+  // Toys: three blocks with two action alleys and a bike-and-ball corner carved
+  // out of the middle block. Plush and building sets fill the back wall.
+  toys({ add, block, alley, rowY, top, signs, BLOCK_W }) {
+    const ROWS = 9, bottom = rowY(ROWS - 1) + SHELF_T;
+    let x = block(PERIM, ROWS);
+    x = alley(x, bottom, 0);
+    const mid = x, bikes = (c, r) => r >= 3 && r <= 5;
+    x = block(x, ROWS, bikes);
+    // Bike racks and a ball cage where the middle rows would be.
+    const y0 = rowY(3) + 20;
+    for (let k = 0; k < 3; k++) add(mid + 20, y0 + k * 110, 220, 22, 'bikes');
+    add(mid + BLOCK_W - 110, y0 + 60, 84, 84, 'cage');
+    x = alley(x, bottom, 2);
+    const right = x; x = block(x, ROWS);
+    const width = x + PERIM;
+    signs.push({ x: width * 0.25, y: 60, text: 'PLUSH', big: true }, { x: width * 0.75, y: 60, text: 'BUILDING SETS', big: true });
+    signs.push({ x: PERIM + BLOCK_W / 2, y: top - 40, text: 'ACTION FIGURES', big: true }, { x: mid + BLOCK_W / 2, y: top - 40, text: 'DOLLS', big: true });
+    signs.push({ x: mid + BLOCK_W / 2, y: y0 - 16, text: 'BIKES', big: true }, { x: right + BLOCK_W / 2, y: top - 40, text: 'GAMES & PUZZLES', big: true });
+    return { width, shelvesBottom: bottom, wallDeco: 'toys' };
+  },
+};
+// Electronics puts a Tech Help counter at the front, left of the registers.
+PLANS.electronics.registersFrom = () => 820;
+PLANS.electronics.front = ({ add, signs }, frontY) => {
+  add(300, frontY + 12, 400, 28, 'counter');
+  signs.push({ x: 500, y: frontY - 20, text: 'TECH HELP' });
+};
 
 // Buckets for collision lookups, plus two path grids: `solid` (the cell
 // touches an obstacle; blocks sight) and `walk` (inflated by a shopper's

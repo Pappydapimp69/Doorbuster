@@ -225,7 +225,7 @@ export const MAPS = {
   },
   electronics: {
     name: 'Electronics', desc: 'TVs, consoles, and the people who camped in the parking lot for them. Unlocks after your first full shift.',
-    tiles: ['#2b2f3a', '#252934'], stripe: '#3fd0ff', bg: '#1e2129', unlockWins: 1, boss: 'District Manager', bossHp: 1.5, hpMul: 1.5, speedMul: 1.1, dmgMul: 1.2,
+    tiles: ['#2b2f3a', '#252934'], stripe: '#3fd0ff', bg: '#1e2129', layout: 'electronics', unlockWins: 1, boss: 'District Manager', bossHp: 1.5, hpMul: 1.5, speedMul: 1.1, dmgMul: 1.2,
     waves: [
       { shopper: 2, walker: 1 },
       { shopper: 2, walker: 2, scalper: 1 },
@@ -243,7 +243,7 @@ export const MAPS = {
 
 MAPS.toys = {
   name: 'Toys', desc: 'The aisle every parent fears. Unlocks after a full shift in Electronics.',
-  tiles: ['#f3d9e6', '#ead0de'], stripe: '#53b96f', bg: '#e9cfdc', unlockMap: 'electronics', boss: 'Store Owner', bossHp: 2.6, hpMul: 2.5, speedMul: 1.15, dmgMul: 1.7,
+  tiles: ['#f3d9e6', '#ead0de'], stripe: '#53b96f', bg: '#e9cfdc', layout: 'toys', unlockMap: 'electronics', boss: 'Store Owner', bossHp: 2.6, hpMul: 2.5, speedMul: 1.15, dmgMul: 1.7,
   waves: [
     { shopper: 2, kid: 2 },
     { shopper: 2, kid: 3, walker: 1 },
