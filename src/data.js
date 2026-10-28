@@ -201,6 +201,8 @@ export const ENEMIES = {
   hoarder:   { name: 'Toy Hoarder', hp: 70, speed: 24, dmg: 11, xp: 4, r: 8, sprite: 'hoarder', knockResist: 0.6 },
   // Ignores puddles and spills; rams in short straight bursts once close, so standing behind a puddle wall stops working.
   scooter:   { name: 'Scooter Shopper', hp: 60, speed: 28, dmg: 12, xp: 4, r: 8, sprite: 'scooter', scooter: true, knockResist: 0.85 },
+  // Shows up every so many knockouts. Beat one and the next shoppers you knock out drop its 3 sale tags.
+  hunter:    { name: 'Deal Hunter', hp: 80, speed: 36, dmg: 9, xp: 8, r: 7, sprite: 'shopper', miniboss: true, knockResist: 0.5 },
   boss:      { name: 'Regional Manager', hp: 6000, speed: 28, dmg: 25, xp: 0, r: 16, sprite: 'boss', boss: true, knockResist: 1 },
 };
 
@@ -297,7 +299,7 @@ export const META = {
   stocktrain: { name: 'Stock Training', desc: '+15% restock speed', max: 5, cost: costs(70, 5), stat: 'restock', per: 0.15 },
   crowd:      { name: 'Crowd Control', desc: 'Riot meter fills 8% slower', max: 5, cost: costs(90, 5), stat: 'riotFill', per: 0.08 },
   hazard:     { name: 'Hazard Pay', desc: '+25% riot tips', max: 4, cost: costs(90, 4), stat: 'riotTips', per: 0.25 },
-  binder:     { name: 'Coupon Binder', desc: '+15% sale tags on the floor', max: 5, cost: costs(80, 5), stat: 'tagLuck', per: 0.15 },
+  binder:     { name: 'Coupon Binder', desc: '+15% sale tag drop chance', max: 5, cost: costs(80, 5), stat: 'tagLuck', per: 0.15 },
   hours:      { name: 'Extended Hours', desc: 'Power-ups last 10% longer', max: 5, cost: costs(80, 5), stat: 'buffDur', per: 0.10 },
   firstaid:   { name: 'First Aid Kit', desc: 'Heals 15% stronger', max: 5, cost: costs(70, 5), stat: 'heal', per: 0.15 },
   tipjar:     { name: 'Tip Jar', desc: '+15% tip drops', max: 5, cost: costs(90, 5), stat: 'coin', per: 0.15 },
@@ -325,7 +327,7 @@ export const EARNED = {
   invmaster:  { name: 'Inventory Master', desc: '+30% restock speed', stat: 'restock', per: 0.30, cond: { stat: 'restocks', need: 150, text: 'Restock 150 shelves' } },
   riotSurv:   { name: 'Riot Survivor', desc: 'Riot meter fills 10% slower', stat: 'riotFill', per: 0.10, cond: { stat: 'riots', need: 10, text: 'Survive 10 riots' } },
   riotVet:    { name: 'Riot Veteran', desc: '+50% riot tips', stat: 'riotTips', per: 0.5, cond: { stat: 'riots', need: 50, text: 'Survive 50 riots' } },
-  bargain:    { name: 'Bargain Hunter', desc: '+20% sale tags', stat: 'tagLuck', per: 0.20, cond: { stat: 'powerups', need: 15, text: 'Grab 15 power-ups' } },
+  bargain:    { name: 'Bargain Hunter', desc: '+20% sale tag drop chance', stat: 'tagLuck', per: 0.20, cond: { stat: 'powerups', need: 15, text: 'Grab 15 power-ups' } },
   dealSeeker: { name: 'Deal Seeker', desc: 'Power-ups last 25% longer', stat: 'buffDur', per: 0.25, cond: { stat: 'powerups', need: 75, text: 'Grab 75 power-ups' } },
   escalation: { name: 'Escalation', desc: '+10% damage to elites and managers', stat: 'eliteDmg', per: 0.10, cond: { stat: 'bossKills', need: 1, text: 'Dismiss a manager' } },
   upperMgmt:  { name: 'Upper Management', desc: '+20% damage to elites and managers', stat: 'eliteDmg', per: 0.20, cond: { stat: 'bossKills', need: 10, text: 'Dismiss 10 managers' } },
@@ -386,7 +388,8 @@ export const RIOT = {
   rewardTips: 1, rewardXp: 3,
 };
 
-export const POWERUP_DENSITY = 0.0015; // chance per floor tile (24px); about one on screen at a time
+// Sale tags: 3 on the floor at the start; after that only Deal Hunters bring them.
+export const TAGS = { start: 3, perHunter: 3, dropChance: 0.2, hunterFirst: 60, hunterStep: 60, hunterGrow: 30 };
 
 export const ACHIEVEMENTS = {
   FIRST_SHIFT: 'Clocked Out — survive a full shift',

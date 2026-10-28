@@ -45,6 +45,8 @@ const UI = {
   riotOver: 'The crowd calms down.',
   riotHud: 'RIOT', riotHudOn: 'RIOT!',
   shelfTip: 'Shoppers strip shelves bare. Empty shelves fill the RIOT meter. Stand still next to a shelf to restock it for tips.',
+  hunterHere: 'A Deal Hunter is on the floor. Knock them out for sale tags.',
+  hunterDown: 'Deal Hunter down! The next shoppers you knock out may drop {n} sale tags.',
   clock24: false,
 };
 

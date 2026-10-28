@@ -9,7 +9,7 @@ and survive until 11:00 AM.
 - Three departments laid out like real store floors (shelf grid, action alleys, signs): Main Floor, Electronics (unlocks after a full shift), Toys (unlocks after a shift in Electronics)
 - Four weapons unlock at milestones; Inventory screen with records and evolution recipes
 - Restock or Riot: shoppers strip shelves, empty shelves fill a riot meter, stand still to restock for tips
-- Sale tags on the floor spin a 3-reel slot machine: matching symbols give a power-up; a rare jackpot (three different) lets you pick a permanent store-policy twist for the run
+- Sale tags (3 at the start, then 3 more from the crowd after each Deal Hunter you knock out) spin a 3-reel slot machine: matching symbols give a power-up; a rare jackpot (three different) lets you pick a permanent store-policy twist for the run
 - Endless Overtime after a win; timed events (Doorbuster Rush, Flash Sales)
 - Break Room: 50 perks (25 bought with tips, 25 earned by playing); 8 staff, each with a starting weapon and passive
 - Keyboard, mouse, gamepad (Steam Deck friendly) and touch (floating stick); all sound synthesized, no assets to license

@@ -1,6 +1,6 @@
 import {
   RUN_SECONDS, SHIFT_START_MIN, SHIFT_GAME_MINUTES, BOSS_AT, MAX_WEAPONS, MAX_PASSIVES, MAX_LEVEL,
-  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, EARNED, MAPS as STAGES, UNLOCKS, POWERUPS, POWERUP_DENSITY, RIOT, JACKPOTS, JACKPOT_CHANCE,
+  WEAPONS, PASSIVES, EVOLUTIONS, ENEMIES, CHARACTERS, META, EARNED, MAPS as STAGES, UNLOCKS, POWERUPS, TAGS, RIOT, JACKPOTS, JACKPOT_CHANCE,
 } from './data.js';
 import { SPR, buildSprites, SHIRT_COUNT } from './sprites.js';
 import { buildStore, collide, clearLine, updateFlow, flowDir, walkable, inside } from './store.js';
@@ -214,11 +214,18 @@ function newRun(charId = save.selected, seed = (Math.random() * 2 ** 31) | 0, ma
     weapons: [], passives: {}, kills: 0, dmgTaken: 0, tipsRun: 0, combo: 0, comboT: 0,
     rerolls: 0, revives: 0, banished: new Set(), jackpots: {}, jpT: {}, jackpotPick: null,
     spawnAcc: 0, events: new Set(), boss: null, bossDead: false, shake: 0, hitstop: 0,
-    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, usedTags: new Set(), powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
+    nextAnnounce: 25, dmgBy: {}, dmgDealt: {}, buffs: {}, tags: [], tagDrops: 0, hunters: 0, nextHunter: TAGS.hunterFirst, powerups: 0, shelves: new Map(), riot: 0, rioting: false, restocks: 0, riots: 0, evolved: 0, choices: null, grid: new Map(),
   };
   // Departments with a floor plan are bounded stores with solid shelves.
   G.store = buildStore(G.stage.layout);
   if (G.store) { G.player.x = G.store.start.x; G.player.y = G.store.start.y; G.flowT = 0; updateFlow(G.store, G.player.x, G.player.y); }
+  // Three sale tags on the floor near the start; later ones come from Deal Hunters.
+  for (let k = 0; k < TAGS.start; k++) {
+    const a = -Math.PI / 2 + (k - 1) * 0.9;
+    let x = G.player.x + Math.cos(a) * 110, y = G.player.y + Math.sin(a) * 110;
+    if (G.store) [x, y] = freeSpotNear(x, y);
+    G.tags.push({ x, y });
+  }
   if (CHARACTERS[charId].passive) G.passives[CHARACTERS[charId].passive] = 1;
   G.stats = computeStats();
   G.rerolls = G.stats.rerolls; G.revives = G.stats.revives;
@@ -333,6 +340,12 @@ function director(dt) {
   if (G.overtime) {
     const n = Math.floor((t - G.otStart) / 120);
     once('otboss' + n, G.otStart + n * 120 + 60, () => spawnBoss(1.5 + n * 0.75));
+  }
+  // A Deal Hunter every so many knockouts, a little further apart each time.
+  if (G.kills >= G.nextHunter) {
+    G.hunters++; G.nextHunter = G.kills + TAGS.hunterStep + TAGS.hunterGrow * G.hunters;
+    spawnEnemy('hunter');
+    announce(T('ui.hunterHere'));
   }
   if (t >= G.nextAnnounce) { G.nextAnnounce = t + rand(35, 60); announce(pick(T('announcements'))); }
 }
@@ -617,6 +630,9 @@ function killEnemy(e) {
     G.parts.push({ x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-80, 20), life: rand(0.3, 0.6), c: pick(['#f3f1ea', '#f5d142', '#e86a9a', '#68b6ea']) });
   }
   if (e.def.xp) dropGem(e.x, e.y, e.def.xp);
+  // Sale tags: a beaten Deal Hunter spills 3 into the crowd; the next shoppers knocked out may drop them.
+  if (e.def.miniboss) { G.tagDrops += TAGS.perHunter; announce(T('ui.hunterDown', { n: TAGS.perHunter })); }
+  else if (G.tagDrops > 0 && !e.def.boss && rng() < TAGS.dropChance * G.stats.tagLuck) { G.tagDrops--; G.tags.push({ x: e.x, y: e.y }); }
   if (e.def.splits) for (let i = 0; i < e.def.splits; i++) {
     const s = spawnEnemy('shopper', 0, 0); s.x = e.x + rand(-8, 8); s.y = e.y + rand(-8, 8);
   }
@@ -1155,8 +1171,7 @@ function autoMove() {
   nearby(p.x, p.y, 120, tmp);
   const lowShelves = riotOn() ? shelvesNear(p.x, p.y, 200).filter((sh) => sh.stock < 0.7) : [];
   const nearTags = [];
-  const ti = Math.floor(p.x / TILE), tj = Math.floor(p.y / TILE);
-  for (let i = ti - 6; i <= ti + 6; i++) for (let j = tj - 6; j <= tj + 6; j++) if (tagAt(i, j)) nearTags.push([i * TILE + 12, j * TILE + 12]);
+  for (const t of G.tags) if (Math.abs(t.x - p.x) < 150 && Math.abs(t.y - p.y) < 150) nearTags.push([t.x, t.y]);
   let best = [0, 0], bestScore = -Infinity;
   for (let i = 0; i < 17; i++) {
     const a = (i / 16) * Math.PI * 2;
@@ -1322,10 +1337,17 @@ function render() {
     cx.drawImage(s, -Math.round(s.width / 2), -Math.round(s.height / 2));
     if (G.buffs.freeze && !e.def.boss) { cx.globalAlpha = 0.45; cx.drawImage(SPR[e.def.sprite + '_flash'][e.var % arr.length], -Math.round(s.width / 2), -Math.round(s.height / 2)); cx.globalAlpha = 1; }
     cx.restore();
-    if (e.def.elite || e.def.boss) {
+    if (e.def.miniboss) {
+      // Deal Hunter: a red sale tag bobbing over their head.
+      const tx = Math.round(e.x), ty = Math.round(e.y - s.height / 2 - 12 + Math.sin(G.t * 5) * 1.5);
+      cx.fillStyle = '#1b1a24'; cx.fillRect(tx - 5, ty - 4, 10, 8);
+      cx.fillStyle = '#e04848'; cx.fillRect(tx - 4, ty - 3, 8, 6);
+      cx.fillStyle = '#ffffff'; cx.fillRect(tx - 2, ty - 1, 4, 1);
+    }
+    if (e.def.elite || e.def.boss || e.def.miniboss) {
       const bw = e.def.boss ? 40 : 18;
       cx.fillStyle = '#000'; cx.fillRect(Math.round(e.x - bw / 2), Math.round(e.y - s.height / 2 - 5), bw, 3);
-      cx.fillStyle = e.def.boss ? '#e04848' : '#f5d142';
+      cx.fillStyle = e.def.boss ? '#e04848' : e.def.miniboss ? '#4cd36a' : '#f5d142';
       cx.fillRect(Math.round(e.x - bw / 2), Math.round(e.y - s.height / 2 - 5), Math.round(bw * Math.max(0, e.hp / e.maxHp)), 3);
     }
   }
@@ -1627,13 +1649,14 @@ function drawShelves() {
 // ---------- floor power-ups ----------
 const TILE = 24;
 const tileHash = (i, j, salt = 0) => (((i * 374761393) ^ (j * 668265263) ^ (salt * 2246822519)) >>> 0) % 100000 / 100000;
-// A sale tag sits on tile (i, j) if the hash says so and nobody took it yet.
-function tagAt(i, j) {
-  if (G.store) {
-    const x = i * TILE + 12, y = j * TILE + 12;
-    if (!inside(G.store, x, y, 16) || !walkable(G.store, x, y) || Math.hypot(x - G.store.start.x, y - G.store.start.y) < 100) return false;
-  } else if (Math.abs(i) + Math.abs(j) < 4) return false; // not under the player at the start
-  return tileHash(i, j, 7) < POWERUP_DENSITY * G.stats.tagLuck && !G.usedTags.has(i + ',' + j);
+// Nearest open floor to (x, y) in a store (spiral out over the path grid).
+function freeSpotNear(x, y) {
+  const st = G.store;
+  for (let r = 0; r < 200; r += 8) for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+    if (inside(st, px, py, 16) && walkable(st, px, py)) return [px, py];
+  }
+  return [st.start.x, st.start.y];
 }
 // Coffee spills (the brown floor stains) slow shoppers who walk through them.
 function onSpill(x, y) {
@@ -1652,13 +1675,13 @@ function pickPowerup() {
 }
 
 function checkTags() {
-  const p = G.player, i0 = Math.floor(p.x / TILE), j0 = Math.floor(p.y / TILE);
-  for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) {
-    if (!tagAt(i, j)) continue;
-    if (Math.hypot(p.x - (i * TILE + 12), p.y - (j * TILE + 12)) > 11) continue;
-    G.usedTags.add(i + ',' + j); // gone the instant it's taken
-    spinSlot(pickPowerup(), i * TILE + 12, j * TILE + 12);
+  const p = G.player;
+  for (const t of G.tags) {
+    if (t.taken || Math.hypot(p.x - t.x, p.y - t.y) > 11) continue;
+    t.taken = true; // gone the instant it's taken
+    spinSlot(pickPowerup(), t.x, t.y);
   }
+  if (G.tags.some((t) => t.taken)) G.tags = G.tags.filter((t) => !t.taken);
 }
 
 // Sale tags pay out like a slot machine: three reels spin and stop left to
@@ -1793,12 +1816,11 @@ function applyPowerup(pu, x, y) {
 }
 
 function drawTags() {
-  const x0 = Math.floor(camX / TILE), y0 = Math.floor(camY / TILE);
-  for (let i = x0 - 1; i <= x0 + W / TILE + 1; i++) for (let j = y0 - 1; j <= y0 + H / TILE + 1; j++) {
-    if (!tagAt(i, j)) continue;
-    const x = i * TILE + 12, y = j * TILE + 12 + Math.round(Math.sin(G.t * 4 + i) * 1.5);
+  for (const t of G.tags) {
+    if (!onScreen(t, 16)) continue;
+    const i = Math.round(t.x / 7), x = Math.round(t.x), y = Math.round(t.y + Math.sin(G.t * 4 + i) * 1.5);
     // A red price tag on a string, with a glint: reads as a pickup, not floor.
-    cx.fillStyle = 'rgba(0,0,0,0.2)'; cx.fillRect(x - 5, j * TILE + 18, 10, 2);
+    cx.fillStyle = 'rgba(0,0,0,0.2)'; cx.fillRect(x - 5, Math.round(t.y) + 6, 10, 2);
     cx.fillStyle = '#1b1a24'; cx.fillRect(x - 6, y - 5, 12, 9); cx.fillRect(x - 8, y - 3, 2, 5);
     cx.fillStyle = '#e04848'; cx.fillRect(x - 5, y - 4, 10, 7); cx.fillRect(x - 7, y - 2, 2, 3);
     cx.fillStyle = '#ffffff'; cx.fillRect(x - 5, y - 1, 1, 1); cx.fillRect(x - 2, y - 2, 5, 1); cx.fillRect(x - 2, y, 4, 1);
@@ -2302,10 +2324,10 @@ window.__db = {
   missingKeys,
   // Nearest untaken sale tag to the player, in world units.
   nearestTag: () => {
-    const p = G.player, ti = Math.floor(p.x / TILE), tj = Math.floor(p.y / TILE);
+    const p = G.player;
     let best = null;
-    for (let r = 1; r < 40 && !best; r++) for (let i = ti - r; i <= ti + r; i++) for (let j = tj - r; j <= tj + r; j++) if (!best && tagAt(i, j)) best = { x: i * TILE + 12, y: j * TILE + 12 };
-    return best;
+    for (const t of G.tags) if (!best || dist2(t, p) < dist2(best, p)) best = t;
+    return best && { x: best.x, y: best.y };
   },
   currentSong,
   setSpeed: (s) => (speed = s),
